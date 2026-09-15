@@ -224,7 +224,9 @@ pop three seconds late sounds broken. A fault live at unlock starts its hum then
 - **Arc buzz:** sawtooth at twice mains through a `tanh` waveshaper and a 1.2 kHz band-pass, plus
   hiss above 5 kHz, gated to the strike with 3 ms ramps.
 - **Whine:** a ballast singing as a tube strikes — a sine at `tuning.whine.pitch` (2.4 kHz) with its
-  octave a quarter as loud, 35% of its level pulsing at twice mains and an 8-cent vibrato at 5.3 Hz.
+  octave a quarter as loud, dropped wherever the octave would pass Nyquist. `buzz` (35%) of its level
+  pulses at twice mains and `vibrato` (8 cents) wobbles it at 5.3 Hz; both at 0 leave one steady
+  tone.
   It follows `layer.whine`, which the host sets rather than any fault: in with a 30 ms time constant,
   and out over `tuning.whine.fade` seconds.
 

@@ -267,10 +267,10 @@ export class AudioEngine {
     const tuning = this.tuning.whine;
     if (!this.whine) {
       if (target === 0) return;
-      this.whine = createWhine(ctx, master, this.mains, tuning.pitch);
+      this.whine = createWhine(ctx, master, this.mains, tuning);
     }
     const now = ctx.currentTime;
-    this.whine.setPitch(tuning.pitch, now);
+    this.whine.setTone(tuning, now);
     // Five time constants leave under 1% of the level, which is silence against a whine this quiet.
     const tau = rising ? WHINE_RISE : Math.max(tuning.fade, 0.01) / 5;
     this.whine.setLevel(target * tuning.level, now, tau);

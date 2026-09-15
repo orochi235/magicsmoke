@@ -7,9 +7,11 @@ import {
   playCrackle,
   playPop,
   playShowerTail,
+  type WhineTone,
 } from '../src/audio/voices.js';
 import { createOverlay } from '../src/overlay.js';
 import { mulberry32 } from '../src/rng.js';
+import { DEFAULT_TUNING } from '../src/tuning.js';
 
 export type VoiceName = 'pop' | 'crackle' | 'shower' | 'arc' | 'hum' | 'whine';
 
@@ -46,9 +48,9 @@ async function renderVoice(name: VoiceName, energy: number): Promise<VoiceReport
   if (name === 'hum') createHum(ctx, ctx.destination, 60).setLevel(1, 0);
   if (name === 'whine') {
     // In at once, then set down at 0.5 s to fade over the default 0.8 s.
-    const whine = createWhine(ctx, ctx.destination, 60, 2400);
+    const whine = createWhine(ctx, ctx.destination, 60, DEFAULT_TUNING.whine);
     whine.setLevel(1, 0, 0.03);
-    whine.setLevel(0, 0.5, 0.8 / 5);
+    whine.setLevel(0, 0.5, DEFAULT_TUNING.whine.fade / 5);
   }
 
   const buffer = await ctx.startRendering();
@@ -69,6 +71,33 @@ async function renderVoice(name: VoiceName, energy: number): Promise<VoiceReport
     rms: Math.sqrt(sum / (buffer.length * buffer.numberOfChannels)),
     lastAudible,
     expectedEnd,
+  };
+}
+
+/**
+ * A second of whine held at full: zero crossings per second, which a pure tone puts at twice its
+ * pitch, and how far its loudness swings across 1 ms windows, which a buzz at twice mains widens.
+ */
+async function renderWhineTone(tone: WhineTone): Promise<{ crossings: number; swing: number }> {
+  const ctx = new OfflineAudioContext(1, RATE, RATE);
+  createWhine(ctx, ctx.destination, 60, tone).setLevel(1, 0, 0.001);
+  const data = (await ctx.startRendering()).getChannelData(0);
+  const from = Math.floor(RATE * 0.1);
+  let crossings = 0;
+  for (let i = from + 1; i < data.length; i++) {
+    if ((data[i] ?? 0) >= 0 !== (data[i - 1] ?? 0) >= 0) crossings++;
+  }
+  const span = Math.floor(RATE * 0.001);
+  const levels: number[] = [];
+  for (let start = from; start + span <= data.length; start += span) {
+    let sum = 0;
+    for (let i = start; i < start + span; i++) sum += (data[i] ?? 0) ** 2;
+    levels.push(Math.sqrt(sum / span));
+  }
+  const loudest = Math.max(...levels);
+  return {
+    crossings: crossings / ((data.length - from) / RATE),
+    swing: loudest > 0 ? (loudest - Math.min(...levels)) / loudest : 0,
   };
 }
 
@@ -186,6 +215,7 @@ async function renderPopSpread(): Promise<{ lengths: number[]; brightness: numbe
 
 const harness = {
   renderVoice,
+  renderWhineTone,
   renderBurst,
   renderFault,
   renderFlashStack,

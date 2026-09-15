@@ -58,8 +58,12 @@ export interface HumTuning extends Threshold {
 /** Set by the host rather than a fault's intensity, so it has no `from`. */
 export interface WhineTuning {
   level: number;
-  /** Hz of the tone; its octave sounds above it. */
+  /** Hz of the tone. Its octave sounds above it wherever that stays under Nyquist. */
   pitch: number;
+  /** Share of the level pulsing at twice mains, 0..1: a ballast's buzz. 0 is a steady tone. */
+  buzz: number;
+  /** Cents of vibrato. 0 holds the pitch still. */
+  vibrato: number;
   /** Seconds the whine takes to fall silent once it is set back down. */
   fade: number;
 }
@@ -118,7 +122,7 @@ export const DEFAULT_TUNING: Readonly<Tuning> = {
   crackle: { from: 0, level: 1 },
   pops: { from: 0, level: 1, floor: 0.2, meanGap: MEAN_GAP, minGap: MIN_GAP },
   hum: { from: 0, level: 1, wobble: 1 },
-  whine: { level: 1, pitch: 2400, fade: 0.8 },
+  whine: { level: 1, pitch: 2400, buzz: 0.35, vibrato: 8, fade: 0.8 },
   jolt: { from: 0, amplitude: 6 },
   haptics: { from: 0 },
   pageFlash: { from: 0, energy: 0.8 },
@@ -242,7 +246,15 @@ export const TUNING_SCHEMA: TuningSchema = {
     label: 'Whine',
     params: {
       level: multiplier('Level ×', 2),
-      pitch: { label: 'Pitch Hz', min: 400, max: 8000, step: 50 },
+      pitch: { label: 'Pitch Hz', min: 400, max: 18000, step: 100 },
+      buzz: {
+        label: 'Buzz',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        hint: '0 is a steady, tinnitus-like tone.',
+      },
+      vibrato: { label: 'Vibrato cents', min: 0, max: 50, step: 1 },
       fade: { label: 'Fade out s', min: 0.05, max: 3, step: 0.05 },
     },
   },

@@ -40,6 +40,23 @@ test('the whine sounds, stays under full scale and fades out after it is set dow
   expect(report.lastAudible).toBeLessThan(1.45);
 });
 
+test('a whine with no buzz or vibrato is one steady tone, even with its octave past Nyquist', async ({
+  page,
+}) => {
+  const report = await page.evaluate(() =>
+    window.harness.renderWhineTone({ pitch: 13000, buzz: 0, vibrato: 0 }),
+  );
+  expect(Math.abs(report.crossings - 26000) / 26000).toBeLessThan(0.02);
+  expect(report.swing).toBeLessThan(0.15);
+});
+
+test('the default whine buzzes', async ({ page }) => {
+  const report = await page.evaluate(() =>
+    window.harness.renderWhineTone({ pitch: 2400, buzz: 0.35, vibrato: 8 }),
+  );
+  expect(report.swing).toBeGreaterThan(0.4);
+});
+
 test('nothing unlocks audio until the page is clicked', async ({ page }) => {
   expect(await page.evaluate(() => window.harness.engineUnlocked())).toBe(false);
   await page.mouse.click(10, 10);
