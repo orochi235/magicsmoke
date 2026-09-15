@@ -230,10 +230,11 @@ fault, a hover pad driving `dwell`, and a control panel over the tuning constant
 
 ## Build order
 
-1. **Spike** (`spikes/`), answering three questions before any module is written: how to fire a
-   quarks burst of N particles at a point on demand; whether `ApplyCollision` bounces stretched
-   billboards convincingly; and whether additive blending onto a transparent, premultiplied canvas
-   composites correctly over a page, since additive blending accumulates alpha as well as color.
+1. **Spike** (`spikes/quarks/`, done). A burst fires through the public `emit()` with a fresh
+   emission state; `ApplyCollision` holds sparks above the floor once the resolver clamps position;
+   stock `AdditiveBlending` composites validly over a transparent canvas, while custom alpha factors
+   are dropped by quarks' batch material. Additive light cannot darken, so sparks over a white page
+   read faintly — as real ones do in daylight.
 2. `rng` and the fault process.
 3. The layer skeleton and overlay host, with sputter and the hum.
 4. Burst and pop.
