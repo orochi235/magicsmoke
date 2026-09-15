@@ -1,0 +1,59 @@
+{
+  "name": "magicsmoke",
+  "version": "0.0.0",
+  "description": "Sparks, arcs, pops and hum: hardware failing on a web page, in three.js",
+  "keywords": [
+    "three",
+    "webgl",
+    "particles",
+    "sparks",
+    "web-audio",
+    "effects"
+  ],
+  "license": "MIT",
+  "author": "orochi235",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "dev": "vite lab",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "biome check .",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "three.quarks": "^0.17.1"
+  },
+  "peerDependencies": {
+    "three": ">=0.185.0 <1.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.4",
+    "jsdom": "^28.1.0",
+    "three": "^0.185.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}
