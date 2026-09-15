@@ -126,8 +126,8 @@ to 50 ms, so a backgrounded tab does not release a backlog.
 **Energy** is `min(1, u⁸·(0.35 + 0.65k) + 0.1k)` for uniform `u`: almost all small, rarely large,
 and the whole distribution rises with intensity. Energy picks the kind — below 0.25 a sputter flare, below 0.75 a burst, above that a shower — and a
 fault with `to` turns half of its discharges above 0.45 into arcs. A shower due within 2.5 s of the
-last becomes a burst, so showers stay occasional and land harder for it. Energy then scales particle count, flash strength, pop loudness, jolt amplitude and
-vibration length.
+last becomes a burst, so showers stay occasional and land harder for it. Energy then scales particle count, flash strength, jolt amplitude and vibration length; pop
+loudness follows the fault's intensity instead.
 
 **Between discharges** a fault above zero fizzes continuously at `at` (about 4·k small sparks a
 second) and hums at a level proportional to k.
