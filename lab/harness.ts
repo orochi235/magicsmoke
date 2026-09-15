@@ -122,10 +122,37 @@ function renderFault(): PixelReport {
 // Built at load rather than inside a test's `evaluate`, which Playwright runs as a user gesture.
 const engine = new AudioEngine({}, mulberry32(3));
 
+/**
+ * Six full-energy bursts on one spot, one a frame, as a hard-running fault throws them: how many
+ * pixels reach full white. Stacked additive glows summing past 1 read as a flat white disc.
+ */
+function renderFlashStack(): { supported: boolean; saturated: number } {
+  const overlay = createOverlay({ seed: 4, loop: false });
+  if (!overlay.supported) return { supported: false, saturated: 0 };
+  const at = { x: innerWidth / 2, y: innerHeight / 2 };
+  for (let i = 0; i < 6; i++) {
+    overlay.burst(at, 1);
+    overlay.render(1 / 60);
+  }
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.magicsmoke-overlay');
+  const gl = canvas?.getContext('webgl2');
+  if (!gl) throw new Error('overlay canvas missing');
+  const { drawingBufferWidth: w, drawingBufferHeight: h } = gl;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let saturated = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (Math.min(px[i] ?? 0, px[i + 1] ?? 0, px[i + 2] ?? 0) >= 250) saturated++;
+  }
+  overlay.dispose();
+  return { supported: true, saturated };
+}
+
 const harness = {
   renderVoice,
   renderBurst,
   renderFault,
+  renderFlashStack,
   /** Fires a discharge at the page's engine and reports whether audio has unlocked. */
   engineUnlocked(): boolean {
     engine.discharge({ kind: 'burst', at: { x: 0, y: 0, z: 0 }, energy: 1 }, 0);

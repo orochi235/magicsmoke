@@ -24,4 +24,4 @@ function radial(size: number, power: number): Texture {
 
 export const dotTexture = (): Texture => radial(32, 2);
 
-export const glowTexture = (): Texture => radial(64, 2.5);
+export const glowTexture = (): Texture => radial(64, 4);

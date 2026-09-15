@@ -83,3 +83,36 @@ describe('Arcs', () => {
     expect(arcs.live).toBe(false);
   });
 });
+
+describe('Flashes glow', () => {
+  const visibleGlows = (flashes: Flashes) =>
+    flashes.object.children.filter(
+      (c): c is import('three').Sprite =>
+        (c as { isSprite?: boolean }).isSprite === true && c.visible,
+    );
+
+  it('restarts a glow already lit nearby rather than stacking another on it', () => {
+    const flashes = new Flashes({ scale: 1, lights: false });
+    for (let i = 0; i < 5; i++) {
+      flashes.fire({ x: i, y: 0, z: 0 }, 1, SPARK_TINT);
+      flashes.update(1 / 60);
+    }
+    expect(visibleGlows(flashes)).toHaveLength(1);
+    flashes.fire({ x: 500, y: 0, z: 0 }, 1, SPARK_TINT);
+    expect(visibleGlows(flashes)).toHaveLength(2);
+  });
+
+  it('barely glows for a small flare', () => {
+    const flashes = new Flashes({ scale: 1, lights: false });
+    flashes.fire(origin, 0.2, SPARK_TINT);
+    const [glow] = visibleGlows(flashes);
+    expect((glow?.material as import('three').SpriteMaterial).opacity).toBeLessThan(0.05);
+  });
+
+  it('keeps a full-energy glow well short of white', () => {
+    const flashes = new Flashes({ scale: 1, lights: false });
+    flashes.fire(origin, 1, SPARK_TINT);
+    const [glow] = visibleGlows(flashes);
+    expect((glow?.material as import('three').SpriteMaterial).opacity).toBeLessThanOrEqual(0.6);
+  });
+});

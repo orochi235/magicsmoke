@@ -1,12 +1,26 @@
-import { AdditiveBlending, Group, PointLight, Sprite, SpriteMaterial, type Texture } from 'three';
+import {
+  AdditiveBlending,
+  Group,
+  PointLight,
+  Sprite,
+  SpriteMaterial,
+  type Texture,
+  Vector3,
+} from 'three';
 import type { Vec3 } from '../types.js';
 import { glowTexture } from './textures.js';
 
 const GLOWS = 12;
 const LIGHTS = 4;
 const LIFE = 0.12;
+/** Opacity of a glow at energy 1. Squared energy leaves small flares nearly dark. */
+const GLOW_PEAK = 0.6;
+/** A flash this close to a lit glow, as a share of its size, relights that glow instead. */
+const MERGE = 0.5;
 /** Point light intensity at energy 1 and scale 1; a light 100 units away needs this order to show. */
 const LIGHT_PEAK = 20000;
+
+const spot = new Vector3();
 
 export const SPARK_TINT = 0xffbe6e;
 export const ARC_TINT = 0x8caaff;
@@ -72,14 +86,28 @@ export class Flashes {
   }
 
   fire(at: Vec3, energy: number, tint: number): void {
-    const glow = this.glows[this.nextGlow] as Glow;
-    this.nextGlow = (this.nextGlow + 1) % GLOWS;
-    glow.age = 0;
-    glow.peak = 0.5 + 0.5 * energy;
-    glow.size = (40 + 60 * energy) * this.scale;
-    glow.material.color.set(tint);
-    glow.sprite.position.set(at.x, at.y, at.z);
-    glow.sprite.visible = true;
+    const peak = GLOW_PEAK * energy * energy;
+    const size = (24 + 40 * energy) * this.scale;
+    // Additive glows landing on one spot within their life sum past white into a flat disc, so a
+    // flash near a lit glow relights it at the brighter of the two rather than stacking.
+    spot.set(at.x, at.y, at.z);
+    const near = this.glows.find(
+      (g) => g.age < LIFE && g.sprite.position.distanceTo(spot) < MERGE * Math.max(g.size, size),
+    );
+    if (near) {
+      near.peak = Math.max(near.peak * (1 - near.age / LIFE), peak);
+      near.size = Math.max(near.size, size);
+      near.age = 0;
+      near.material.color.set(tint);
+    } else {
+      const glow = this.glows[this.nextGlow] as Glow;
+      this.nextGlow = (this.nextGlow + 1) % GLOWS;
+      glow.age = 0;
+      glow.peak = peak;
+      glow.size = size;
+      glow.material.color.set(tint);
+      glow.sprite.position.set(at.x, at.y, at.z);
+    }
 
     const lamp = this.lamps[this.nextLamp];
     if (lamp) {
