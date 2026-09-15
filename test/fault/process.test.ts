@@ -3,9 +3,16 @@ import { type Draft, FaultProcess } from '../../src/fault/process.js';
 import { DEFAULT_FAULT_TUNING as T } from '../../src/fault/tuning.js';
 import { mulberry32 } from '../../src/rng.js';
 
-function run(k: number, seconds: number, dt = 1 / 60, seed = 42): Draft[] {
+function run(
+  k: number,
+  seconds: number,
+  dt = 1 / 60,
+  seed = 42,
+  prepare: (process: FaultProcess) => void = () => {},
+): Draft[] {
   const process = new FaultProcess(mulberry32(seed));
   process.target = k;
+  prepare(process);
   const drafts: Draft[] = [];
   const frames = Math.round(seconds / dt);
   for (let i = 0; i < frames; i++) drafts.push(...process.step(dt));
@@ -71,6 +78,16 @@ describe('FaultProcess', () => {
     const drafts = run(1, 600);
     const small = drafts.filter((d) => d.kind === 'sputter').length;
     expect(small / drafts.length).toBeGreaterThan(0.6);
+  });
+
+  it('discharges faster under a surge and harder under a lift', () => {
+    const plain = run(0.5, 120);
+    const surged = run(0.5, 120, 1 / 60, 42, (process) => {
+      process.surge = 3;
+      process.lift = 0.2;
+    });
+    expect(surged.length).toBeGreaterThan(2 * plain.length);
+    expect(Math.min(...surged.map((d) => d.energy))).toBeGreaterThanOrEqual(0.2);
   });
 
   it('keeps one seed’s sequence stable', () => {

@@ -12,8 +12,94 @@ function setup(options: LayerOptions = {}) {
   const advance = (seconds: number) => {
     for (let t = 0; t < seconds; t += 1 / 60) layer.update(1 / 60);
   };
-  return { layer, seen, advance };
+  const frames = (count: number) => {
+    for (let i = 0; i < count; i++) layer.update(1 / 60);
+  };
+  return { layer, seen, advance, frames };
 }
+
+const stubAnimate = () =>
+  vi.fn((_keyframes: Keyframe[], _options: KeyframeAnimationOptions) => ({
+    cancel() {},
+    finished: Promise.resolve(),
+  }));
+
+describe('fault.blow', () => {
+  it('discharges faster and harder on the way to its climax than a fault held at full', () => {
+    const held = setup();
+    held.layer.fault({ at: origin, intensity: 1 });
+    held.frames(290);
+    const blown = setup();
+    blown.layer.fault({ at: origin, intensity: 1 }).blow({ peak: 5000 });
+    blown.frames(290);
+    const mean = (ds: Discharge[]) => ds.reduce((sum, d) => sum + d.energy, 0) / ds.length;
+    expect(blown.seen.length).toBeGreaterThan(held.seen.length);
+    expect(mean(blown.seen)).toBeGreaterThan(mean(held.seen));
+  });
+
+  it('throws its showers at the climax and dies out after', () => {
+    const { layer, seen, frames } = setup({ tuning: { blow: { showers: 3 } } });
+    const fault = layer.fault({ at: { x: 4, y: 5, z: 0 } });
+    fault.blow({ peak: 510, after: 200 });
+    frames(30);
+    expect(seen.filter((d) => d.intensity === undefined)).toHaveLength(0);
+    frames(1);
+    const volley = seen.filter((d) => d.intensity === undefined);
+    expect(volley.map((d) => d.kind)).toEqual(['shower', 'shower', 'shower', 'burst']);
+    expect(volley.every((d) => d.energy === 1 && d.at.x === 4 && d.at.y === 5)).toBe(true);
+    frames(20);
+    expect(fault.intensity).toBe(0);
+    frames(240);
+    expect(layer.live).toBe(false);
+  });
+
+  it('arcs at the climax when the fault has somewhere to land', () => {
+    const { layer, seen, frames } = setup();
+    layer.fault({ at: origin, to: { x: 9, y: 0, z: 0 } }).blow({ peak: 0 });
+    frames(1);
+    expect(seen.some((d) => d.kind === 'arc' && d.intensity === undefined && d.to?.x === 9)).toBe(
+      true,
+    );
+  });
+
+  it('ignores intensity while blowing and takes it again once the blow ends', () => {
+    const { layer, frames } = setup();
+    const fault = layer.fault({ at: origin });
+    fault.blow({ peak: 100, after: 100 });
+    fault.intensity = 0.2;
+    expect(fault.intensity).toBe(1);
+    frames(30);
+    expect(fault.intensity).toBe(0);
+    fault.intensity = 0.4;
+    expect(fault.intensity).toBe(0.4);
+  });
+
+  it('does nothing to a stopped fault', () => {
+    const { layer } = setup();
+    const fault = layer.fault({ at: origin, intensity: 1 });
+    fault.stop();
+    fault.blow();
+    expect(fault.intensity).toBe(0);
+  });
+
+  it('shudders the jolt element until the climax, unless motion is reduced', () => {
+    const animate = stubAnimate();
+    const { layer } = setup({ jolt: { animate } as unknown as Element });
+    layer.fault({ at: origin }).blow({ peak: 900 });
+    expect(animate).toHaveBeenCalledTimes(1);
+    expect(Number(animate.mock.calls[0]?.[1].duration)).toBeCloseTo(930);
+
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    try {
+      const still = stubAnimate();
+      const reduced = setup({ jolt: { animate: still } as unknown as Element });
+      reduced.layer.fault({ at: origin }).blow({ peak: 900 });
+      expect(still).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
 
 describe('createLayer', () => {
   it('discharges at the fault while it runs', () => {

@@ -67,8 +67,19 @@ export interface PageFlashTuning extends Threshold {
   energy: number;
 }
 
+/** A blow is not gated by intensity, so it has no `from`. */
+export interface BlowTuning {
+  /** CSS pixels the element shakes at the climax. */
+  shudder: number;
+  /** Full-energy showers thrown at the climax. */
+  showers: number;
+  /** How many times faster the fault discharges at the climax. */
+  surge: number;
+}
+
 export interface Tuning {
   fault: FaultTuning;
+  blow: BlowTuning;
   sparks: SparkTuning;
   fizz: FizzTuning;
   arcs: ArcTuning;
@@ -88,6 +99,7 @@ export type TuningOverrides = { [G in TuningGroup]?: Partial<Tuning[G]> };
 
 export const DEFAULT_TUNING: Readonly<Tuning> = {
   fault: DEFAULT_FAULT_TUNING,
+  blow: { shudder: 24, showers: 3, surge: 4 },
   sparks: { from: 0, count: 1, size: 1, speed: 1, life: 1 },
   fizz: { from: 0, perSecond: 4 },
   arcs: { from: 0 },
@@ -167,6 +179,14 @@ export const TUNING_SCHEMA: TuningSchema = {
       arcFrom: { label: 'Arcs from energy', min: 0, max: 1, step: 0.01 },
       arcShare: { label: 'Arc share', min: 0, max: 1, step: 0.05 },
       showerCooldown: { label: 'Shower cooldown s', min: 0, max: 10, step: 0.1 },
+    },
+  },
+  blow: {
+    label: 'Blow',
+    params: {
+      shudder: { label: 'Shudder px at climax', min: 0, max: 60, step: 1 },
+      showers: { label: 'Showers at climax', min: 0, max: 8, step: 1 },
+      surge: { label: 'Discharge rate × at climax', min: 1, max: 10, step: 0.5 },
     },
   },
   sparks: {

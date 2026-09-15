@@ -47,6 +47,30 @@ describe('Jolter', () => {
     expect(Math.max(...offsets(animate))).toBeLessThanOrEqual(3);
   });
 
+  it('shudders harder toward the end of a shudder and settles at the origin', () => {
+    const { element, animate } = stubbed();
+    new Jolter(element).shudder(1, 6, 24, mulberry32(1));
+    expect(animate).toHaveBeenCalledTimes(1);
+    const [keyframes = [], options] = animate.mock.calls[0] ?? [];
+    expect(options).toMatchObject({ composite: 'add' });
+    expect(Number(options?.duration)).toBeCloseTo(1030);
+    expect(keyframes[0]?.translate).toBe('0px 0px');
+    expect(keyframes.at(-1)?.translate).toBe('0px 0px');
+    const radii = keyframes.slice(1, -1).map((frame) => {
+      const [x = 0, y = 0] = String(frame.translate).split(' ').map(Number.parseFloat);
+      return Math.hypot(x, y);
+    });
+    const quarter = Math.floor(radii.length / 4);
+    expect(Math.max(...radii)).toBeLessThanOrEqual(24);
+    expect(Math.max(...radii.slice(0, quarter))).toBeLessThan(Math.min(...radii.slice(-quarter)));
+  });
+
+  it('does not shudder for no time', () => {
+    const { element, animate } = stubbed();
+    new Jolter(element).shudder(0, 6, 24, mulberry32(1));
+    expect(animate).not.toHaveBeenCalled();
+  });
+
   it('cancels unfinished animations on dispose', () => {
     const { element, animation } = stubbed();
     const jolter = new Jolter(element);

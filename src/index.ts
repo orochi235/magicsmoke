@@ -1,6 +1,13 @@
 export type { AudioOptions } from './audio/engine.js';
 export type { FaultTuning } from './fault/tuning.js';
-export { createLayer, type Fault, type FaultSpec, type Layer, type LayerOptions } from './layer.js';
+export {
+  type BlowSpec,
+  createLayer,
+  type Fault,
+  type FaultSpec,
+  type Layer,
+  type LayerOptions,
+} from './layer.js';
 export {
   createOverlay,
   type Overlay,
@@ -11,6 +18,7 @@ export {
 export { type Dwell, type DwellSpec, dwell } from './page/dwell.js';
 export {
   type ArcTuning,
+  type BlowTuning,
   type CrackleTuning,
   DEFAULT_TUNING,
   type FizzTuning,

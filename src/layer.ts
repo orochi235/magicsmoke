@@ -42,11 +42,24 @@ export interface FaultSpec {
   intensity?: number;
 }
 
+export interface BlowSpec {
+  /** Milliseconds from the call to the climax. Default 1000. */
+  peak?: number;
+  /** Milliseconds from the climax to silence. Default 300. */
+  after?: number;
+}
+
 export interface Fault {
   /** 0..1. The fault eases toward each new value over about 100 ms. */
   intensity: number;
   at: Vec3;
   to: Vec3 | null;
+  /**
+   * Overloads the fault: it discharges ever faster and harder up to a climax at `peak`, throws a
+   * volley of full-energy showers there, and dies out over `after`, ending at zero. Intensity writes
+   * are ignored until then. Does nothing to a stopped fault or one already blowing.
+   */
+  blow(spec?: BlowSpec): void;
   /** Winds the fault down to silence, after which the layer forgets it. */
   stop(): void;
 }
@@ -74,19 +87,34 @@ export interface Layer {
 
 const MAX_STEP = 0.05;
 const SILENT = 1e-3;
+/** Energy a blow adds to every discharge by its climax. */
+const BLOW_LIFT = 0.3;
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0));
 const arcDuration = (energy: number) => 0.05 + 0.17 * energy;
+const seconds = (ms: number | undefined, fallback: number) =>
+  Math.max(0, ms !== undefined && Number.isFinite(ms) ? ms : fallback) / 1000;
+
+interface Blowing {
+  /** Seconds since the blow began, and from then to the climax and from the climax to silence. */
+  elapsed: number;
+  peak: number;
+  after: number;
+  climaxed: boolean;
+}
 
 class FaultHandle implements Fault {
   readonly process: FaultProcess;
   at: Vec3;
   stopped = false;
   fizzCarry = 0;
+  blowing: Blowing | null = null;
   private landing: Vec3 | null = null;
+  private readonly onBlow: (fault: FaultHandle) => void;
 
-  constructor(process: FaultProcess, spec: FaultSpec) {
+  constructor(process: FaultProcess, spec: FaultSpec, onBlow: (fault: FaultHandle) => void) {
     this.process = process;
+    this.onBlow = onBlow;
     this.at = spec.at;
     this.to = spec.to ?? null;
     this.intensity = spec.intensity ?? 0;
@@ -97,7 +125,15 @@ class FaultHandle implements Fault {
   }
 
   set intensity(value: number) {
-    if (!this.stopped) this.process.target = clamp01(value);
+    if (!this.stopped && !this.blowing) this.process.target = clamp01(value);
+  }
+
+  blow(spec: BlowSpec = {}): void {
+    if (this.stopped || this.blowing) return;
+    const peak = seconds(spec.peak, 1000);
+    this.blowing = { elapsed: 0, peak, after: seconds(spec.after, 300), climaxed: false };
+    this.process.target = 1;
+    this.onBlow(this);
   }
 
   get to(): Vec3 | null {
@@ -110,6 +146,9 @@ class FaultHandle implements Fault {
   }
 
   stop(): void {
+    this.blowing = null;
+    this.process.surge = 1;
+    this.process.lift = 0;
     this.process.target = 0;
     this.stopped = true;
   }
@@ -198,6 +237,7 @@ class MagicLayer implements Layer {
     const t = this.tuning;
     let hum = 0;
     for (const fault of this.faults) {
+      if (fault.blowing) this.advanceBlow(fault, step);
       for (const draft of fault.process.step(step)) {
         const discharge: Discharge = {
           kind: draft.kind,
@@ -247,7 +287,15 @@ class MagicLayer implements Layer {
   }
 
   fault(spec: FaultSpec): Fault {
-    const handle = new FaultHandle(new FaultProcess(fork(this.rng), this.tuning.fault), spec);
+    const handle = new FaultHandle(
+      new FaultProcess(fork(this.rng), this.tuning.fault),
+      spec,
+      (fault) => {
+        if (this.disposed || !fault.blowing) return;
+        const { jolt, blow } = this.tuning;
+        this.jolter?.shudder(fault.blowing.peak, jolt.amplitude, blow.shudder, this.pageRng);
+      },
+    );
     if (!this.disposed) this.faults.add(handle);
     return handle;
   }
@@ -263,6 +311,34 @@ class MagicLayer implements Layer {
     this.jolter?.dispose();
     this.pageFlash?.dispose();
     this.object.removeFromParent();
+  }
+
+  /** Surges the fault toward its climax, throws the volley there, then fades it to zero. */
+  private advanceBlow(fault: FaultHandle, step: number): void {
+    const blow = fault.blowing;
+    if (!blow) return;
+    const { process } = fault;
+    blow.elapsed += step;
+    if (!blow.climaxed) {
+      const u = blow.peak > 0 ? Math.min(1, blow.elapsed / blow.peak) : 1;
+      process.surge = 1 + (this.tuning.blow.surge - 1) * u * u;
+      process.lift = BLOW_LIFT * u * u;
+      if (blow.elapsed < blow.peak) return;
+      blow.climaxed = true;
+      process.surge = 1;
+      process.lift = 0;
+      for (let i = 0; i < this.tuning.blow.showers; i++) {
+        this.oneShot({ kind: 'shower', at: { ...fault.at }, energy: 1 });
+      }
+      this.oneShot({ kind: 'burst', at: { ...fault.at }, energy: 1 });
+      if (fault.to) {
+        const to = { ...fault.to };
+        this.oneShot({ kind: 'arc', at: { ...fault.at }, to, energy: 1, duration: arcDuration(1) });
+      }
+    }
+    const fade = blow.after > 0 ? (blow.elapsed - blow.peak) / blow.after : 1;
+    process.target = clamp01(1 - fade);
+    if (fade >= 1) fault.blowing = null;
   }
 
   private oneShot(discharge: Discharge): void {

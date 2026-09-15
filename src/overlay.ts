@@ -1,5 +1,5 @@
 import { OrthographicCamera, Scene, WebGLRenderer } from 'three';
-import { createLayer, type Fault, type Layer, type LayerOptions } from './layer.js';
+import { type BlowSpec, createLayer, type Fault, type Layer, type LayerOptions } from './layer.js';
 import { resolveTuning, type Tuning } from './tuning.js';
 import type { Point, Vec3 } from './types.js';
 
@@ -20,6 +20,8 @@ export interface OverlayFault {
   intensity: number;
   at: Point;
   to: Point | null;
+  /** See `Fault.blow`. */
+  blow(spec?: BlowSpec): void;
   stop(): void;
 }
 
@@ -82,6 +84,11 @@ class OverlayFaultHandle implements OverlayFault {
     this.wake();
   }
 
+  blow(spec?: BlowSpec): void {
+    this.inner.blow(spec);
+    this.wake();
+  }
+
   stop(): void {
     this.inner.stop();
     this.wake();
@@ -98,6 +105,7 @@ class InertFault implements OverlayFault {
     this.to = spec.to ?? null;
   }
 
+  blow(): void {}
   stop(): void {}
 }
 

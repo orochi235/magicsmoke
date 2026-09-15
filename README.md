@@ -50,7 +50,10 @@ renderer.setAnimationLoop((time) => {
 });
 ```
 
-A fault given a `to` point arcs to it. `layer.live` is false once nothing is moving, lit or
+A fault given a `to` point arcs to it. `fault.blow({ peak, after })` overloads a fault: it
+discharges ever faster and harder while the element shakes, throws a volley of showers at the climax
+`peak` milliseconds later, and dies out over `after`. Time `peak` to a sign's own flare.
+`layer.live` is false once nothing is moving, lit or
 sounding, so a host can stop rendering.
 
 ## Options
@@ -74,7 +77,7 @@ sounding, so a host can stop rendering.
   Discharges before then make no sound; they are not saved up.
 - **Vibration** works only in browsers that implement `navigator.vibrate`, which excludes iOS
   Safari, and only after the page has had a user gesture.
-- **Reduced motion** turns off jolt, point lights and page flash, and halves the sparks. Sound
+- **Reduced motion** turns off jolt and a blow's shudder, point lights and page flash, and halves the sparks. Sound
   stays.
 - Where WebGL is unavailable the overlay reports `supported: false` and every call does nothing.
 

@@ -18,6 +18,10 @@ const SILENT = 1e-3;
 export class FaultProcess {
   target = 0;
   canArc = false;
+  /** Multiplies the discharge rate before excitation. */
+  surge = 1;
+  /** Added to every discharge's energy, before the cap at 1. */
+  lift = 0;
   private readonly rng: Rng;
   private readonly tuning: FaultTuning;
   private eased = 0;
@@ -53,9 +57,9 @@ export class FaultProcess {
       this.eased += (this.target - this.eased) * follow;
       const k = this.eased;
       if (k >= SILENT) {
-        const rate = t.baseRate + t.rateCurve * k * k + this.excitation;
+        const rate = (t.baseRate + t.rateCurve * k * k) * this.surge + this.excitation;
         if (this.rng() < 1 - Math.exp(-rate * SUBSTEP)) {
-          const energy = drawEnergy(this.rng(), k, t);
+          const energy = Math.min(1, drawEnergy(this.rng(), k, t) + this.lift);
           const now = this.ticks * SUBSTEP;
           let kind = kindFor(energy, this.canArc, this.rng(), t);
           // A shower lands harder for being rare, so one due inside the cooldown is a burst.

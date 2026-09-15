@@ -140,6 +140,15 @@ second) and hums at a level proportional to k.
 
 **Intensity** eases toward each write with τ = 100 ms. At zero a fault is dark and silent.
 
+**Blow** is the overload: `fault.blow({ peak = 1000, after = 300 })`, in milliseconds so a host can
+time it to a sign's own flare. From the call to `peak` the fault holds full intensity while its rate
+climbs to `tuning.blow.surge` times normal and every discharge gains up to 0.3 energy, both with the
+square of time elapsed, and the jolt element shudders. At `peak` it throws `tuning.blow.showers`
+full-energy showers and a full-energy burst, plus an arc if it has a `to`; these are one-shots, so
+no threshold holds them back, and each shower pops. Intensity then fades linearly to zero over
+`after`. Writes to `intensity` are ignored for the whole blow; afterward the fault sits at zero until
+the next write. A stopped fault, or one already blowing, ignores `blow`.
+
 ## Sparks
 
 Each kind is one looping three.quarks `ParticleSystem`, created with the layer and never destroyed,
@@ -178,6 +187,10 @@ for photosensitivity.
 (default 0), ramping from zero there to full at 1; a one-shot's is its energy. Additive
 composition stacks overlapping jolts and leaves the element's own `transform` and `translate`
 alone, and nothing writes inline style. `dispose` cancels the animations.
+
+**Shudder** is a blow's jolt: one additive track with a random offset every 30 ms from the call to
+the climax, growing with the square of time from `tuning.jolt.amplitude` to `tuning.blow.shudder`
+pixels, then straight back to rest.
 
 **Haptics** call `navigator.vibrate(10 + 40·energy)` at most once per 50 ms, only after the page
 has had a user activation, and not at all where the API is missing.
@@ -222,12 +235,12 @@ quietest active voice is stopped for it.
 
 ## Tuning
 
-`tuning` is one object grouped by effect — `fault`, `sparks`, `fizz`, `arcs`, `glow`, `lights`,
+`tuning` is one object grouped by effect — `fault`, `blow`, `sparks`, `fizz`, `arcs`, `glow`, `lights`,
 `crackle`, `pops`, `hum`, `jolt`, `haptics`, `pageFlash` — read as each effect is used, so writes take
 effect at once. `createLayer({ tuning })` lays overrides over `DEFAULT_TUNING` group by group, as
 `resolveTuning` does.
 
-Every group but `fault` has a `from`: the fault intensity where that effect starts. Below it the
+Every group but `fault` and `blow` has a `from`: the fault intensity where that effect starts. Below it the
 effect is off; above it, whatever scales with intensity — jolt strength, pop loudness, fizz rate, hum
 level — ramps from zero at `from` to full at 1. One-shots carry no intensity, so thresholds never
 hold them back.

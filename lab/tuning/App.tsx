@@ -38,6 +38,7 @@ interface StageSettings {
 const STAGE: StageSettings = { hold: 0, arcs: false, energy: 0.6, volume: 0.8, muted: false };
 
 const SHOTS = ['sputter', 'burst', 'shower', 'arc'] as const;
+const BLOW = { peak: 1000, after: 300 };
 type Shot = (typeof SHOTS)[number];
 
 declare global {
@@ -147,6 +148,16 @@ export function App() {
     else overlay[shot](center, stage.energy);
   };
 
+  const blow = () => {
+    if (!rig) return;
+    const { standing } = rig;
+    standing.blow({ peak: BLOW.peak, after: BLOW.after });
+    // A blow leaves the fault at zero, and the hold slider only writes when it moves.
+    setTimeout(() => {
+      standing.intensity = stage.hold;
+    }, BLOW.peak + BLOW.after);
+  };
+
   const copy = async () => {
     const overrides = overridesOf(tuning);
     const count = Object.values(overrides).reduce((n, group) => n + Object.keys(group).length, 0);
@@ -210,6 +221,11 @@ export function App() {
                 onChange={(v) => setStage('arcs', v)}
               />
             </PropertyList>
+            <div className="tuning-shots">
+              <Button size="sm" onClick={blow}>
+                blow
+              </Button>
+            </div>
           </PropertyPanel>
           <PropertyPanel title="One-shots">
             <div className="tuning-shots">
