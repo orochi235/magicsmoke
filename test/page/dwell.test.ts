@@ -100,6 +100,33 @@ describe('dwell', () => {
     expect(d.value).toBe(1);
   });
 
+  const enterAs = (pointerType: string) => {
+    const event = new Event('pointerenter');
+    Object.defineProperty(event, 'pointerType', { value: pointerType });
+    element.dispatchEvent(event);
+  };
+
+  it('builds over touchRise under a finger', () => {
+    const d = dwell(element, { rise: 1500, touchRise: 500, fall: 600 });
+    enterAs('touch');
+    vi.advanceTimersByTime(250);
+    expect(d.value).toBeCloseTo(0.5, 1);
+  });
+
+  it('keeps rise for a mouse even when touchRise is set', () => {
+    const d = dwell(element, { rise: 1500, touchRise: 500, fall: 600 });
+    enterAs('mouse');
+    vi.advanceTimersByTime(750);
+    expect(d.value).toBeCloseTo(0.5, 1);
+  });
+
+  it('uses rise for a finger when no touchRise is given', () => {
+    const d = dwell(element, { rise: 1000, fall: 600 });
+    enterAs('touch');
+    vi.advanceTimersByTime(500);
+    expect(d.value).toBeCloseTo(0.5, 1);
+  });
+
   it('stops requesting frames once settled', () => {
     dwell(element, { rise: 100, fall: 100 });
     element.dispatchEvent(new Event('pointerenter'));

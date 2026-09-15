@@ -1,5 +1,7 @@
 export interface DwellSpec {
   rise: number;
+  /** Milliseconds to build under a finger, which rests only briefly. Defaults to `rise`. */
+  touchRise?: number;
   fall: number;
   /**
    * CSS pixels of pointer travel that cost the whole value, so the value measures how long the
@@ -32,6 +34,7 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
   // Whether x and y were seen during this visit, so a return is not charged for the trip back.
   let anchored = false;
   const drain = spec.drain ?? DEFAULT_DRAIN;
+  let rise = spec.rise;
 
   const state: Dwell = {
     get value() {
@@ -81,7 +84,7 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
     const changed = frame !== null && advance(now);
     last = now;
     target = next;
-    rate = next === 1 ? 1 / Math.max(spec.rise, 1) : value / Math.max(spec.fall, 1);
+    rate = next === 1 ? 1 / Math.max(rise, 1) : value / Math.max(spec.fall, 1);
     if (changed) notify();
     if (value !== target && frame === null) frame = requestAnimationFrame(tick);
   };
@@ -95,6 +98,8 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
   };
 
   function enter(event: Event) {
+    const touch = (event as { pointerType?: string }).pointerType === 'touch';
+    rise = touch && spec.touchRise !== undefined ? spec.touchRise : spec.rise;
     if (track(event)) notify();
     anchored = event instanceof MouseEvent;
     head(1);
