@@ -24,7 +24,9 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 
 The ask, in the user's words: when the overload happens, "everything should be very loud and bright
 for a moment before it dies", and "pull the flare effect into magicsmoke — it probably makes more
-sense here". **No page flash** (photosensitivity).
+sense here". **No page flash** (photosensitivity). And it should **shudder violently as it climaxes**:
+the element shaking hard and fast, building to the peak of the flare, far past the 6px ordinary jolt,
+and skipped under reduced motion like the rest of the flare.
 
 Undecided, and worth settling before code:
 
