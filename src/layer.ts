@@ -76,6 +76,8 @@ const PAGE_FLASH_FROM = 0.8;
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0));
 const arcDuration = (energy: number) => 0.05 + 0.17 * energy;
+/** 0 at `from`, 1 at full intensity. */
+const above = (k: number, from: number) => (from >= 1 ? 0 : clamp01((k - from) / (1 - from)));
 
 class FaultHandle implements Fault {
   readonly process: FaultProcess;
@@ -275,7 +277,9 @@ class MagicLayer implements Layer {
       this.flashes.fire(d.at, d.energy, SPARK_TINT);
     }
     this.audio?.discharge(d, this.pan(d.at));
-    this.jolter?.kick(d.energy, this.pageRng);
+    // A fault's jolt follows its intensity past the threshold; a one-shot's follows its energy.
+    const jolt = d.intensity === undefined ? d.energy : above(d.intensity, this.tuning.joltFrom);
+    if (jolt > 0) this.jolter?.kick(jolt, this.pageRng);
     this.haptics?.pulse(d.energy);
     if (d.energy > PAGE_FLASH_FROM) this.pageFlash?.pulse(d.energy);
     this.onDischarge?.(d);

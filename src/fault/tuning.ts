@@ -21,6 +21,8 @@ export interface Tuning {
   showerCooldown: number;
   /** Small sparks a second a fault at intensity 1 fizzes between discharges. */
   fizzPerSecond: number;
+  /** Fault intensity where the jolt starts; its strength ramps from zero there to full at 1. */
+  joltFrom: number;
 }
 
 /**
@@ -43,4 +45,5 @@ export const DEFAULT_TUNING: Readonly<Tuning> = {
   arcShare: 0.5,
   showerCooldown: 2.5,
   fizzPerSecond: 4,
+  joltFrom: 0,
 };

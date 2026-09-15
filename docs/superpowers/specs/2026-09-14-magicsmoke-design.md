@@ -170,7 +170,8 @@ for photosensitivity.
 ## Page effects
 
 **Jolt** plays a Web Animations keyframe track on the element's `translate` property with
-`composite: 'add'`: eight damped random offsets over 180 ms, amplitude `6px · energy`. Additive
+`composite: 'add'`: eight damped random offsets over 180 ms, amplitude 6px times the strength. A fault's strength is its intensity past `tuning.joltFrom`
+(default 0), ramping from zero there to full at 1; a one-shot's is its energy. Additive
 composition stacks overlapping jolts and leaves the element's own `transform` and `translate`
 alone, and nothing writes inline style. `dispose` cancels the animations.
 

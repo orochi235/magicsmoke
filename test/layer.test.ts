@@ -1,5 +1,5 @@
 import { Scene } from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createLayer, type LayerOptions } from '../src/layer.js';
 import type { Discharge } from '../src/types.js';
 
@@ -66,6 +66,21 @@ describe('createLayer', () => {
     const late = seen.length;
     advance(2);
     expect(seen.length).toBe(late);
+  });
+
+  it('jolts only past the jolt threshold, harder toward full intensity', () => {
+    const animate = vi.fn(() => ({ cancel() {}, finished: Promise.resolve(), onfinish: null }));
+    const element = { animate } as unknown as Element;
+    const calm = setup({ jolt: element, tuning: { joltFrom: 0.9 } });
+    calm.layer.fault({ at: origin, intensity: 0.85 });
+    calm.advance(30);
+    expect(calm.seen.length).toBeGreaterThan(0);
+    expect(animate).not.toHaveBeenCalled();
+
+    const strained = setup({ jolt: element, tuning: { joltFrom: 0.9 } });
+    strained.layer.fault({ at: origin, intensity: 1 });
+    strained.advance(10);
+    expect(animate).toHaveBeenCalled();
   });
 
   it('clamps one-shot energy', () => {
