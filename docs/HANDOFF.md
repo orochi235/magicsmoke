@@ -21,9 +21,9 @@ Written 2026-09-15. Check it against `git log` before trusting it.
   calls `blow` on `'flaring'` with the same `OVERLOAD` timing.
 - **magicsmoke 0.3.0 adds `layer.whine`**, a high ballast whine fading over 0.8 s, which the
   masthead and the magicsmoke tile play while the sign strikes back on after a short. They tune it
-  to 12 kHz (`REARM_WHINE`), barely perceptible as the user asked; 15 kHz was likely inaudible to
-  them; magicsmoke's default is 2.4 kHz,
-  and its lab slider stops at 8 kHz. The re-arm
+  through `REARM_WHINE` to 13 kHz with no buzz or vibrato — a steady tinnitus tone, which is what the
+  user asked for after hearing the 2.4 kHz-style buzz as scratchy. 15 kHz was inaudible to them and
+  12 kHz was audible but low. magicsmoke's own default stays a 2.4 kHz ballast buzz. The re-arm
   itself is `strike(REARM)`: 700 ms and 7 blinks against klieg's 1.2 s and 4.
 - **The masthead dims the tubes around a resting cursor** (`MASTHEAD_HUSH` in `mastheadLook.ts`):
   gain falls with klieg's `near()` (1.2 em) times the hover squared, to 0.15 under a held cursor, and
