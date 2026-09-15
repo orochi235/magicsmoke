@@ -51,6 +51,8 @@ export interface PopTuning extends Threshold {
 
 export interface HumTuning extends Threshold {
   level: number;
+  /** How far the hum's level and pitch drift, growing with intensity. 0 holds it steady. */
+  wobble: number;
 }
 
 export interface JoltTuning extends Threshold {
@@ -93,7 +95,7 @@ export const DEFAULT_TUNING: Readonly<Tuning> = {
   lights: { from: 0, peak: 20000 },
   crackle: { from: 0, level: 1 },
   pops: { from: 0, level: 1, floor: 0.2, meanGap: MEAN_GAP, minGap: MIN_GAP },
-  hum: { from: 0, level: 1 },
+  hum: { from: 0, level: 1, wobble: 1 },
   jolt: { from: 0, amplitude: 6 },
   haptics: { from: 0 },
   pageFlash: { from: 0, energy: 0.8 },
@@ -201,7 +203,10 @@ export const TUNING_SCHEMA: TuningSchema = {
       minGap: { label: 'Min gap s', min: 0, max: 2, step: 0.01 },
     },
   },
-  hum: { label: 'Hum', params: { from, level: multiplier('Level ×', 2) } },
+  hum: {
+    label: 'Hum',
+    params: { from, level: multiplier('Level ×', 2), wobble: multiplier('Wobble ×', 3) },
+  },
   jolt: {
     label: 'Jolt',
     params: { from, amplitude: { label: 'Amplitude px', min: 0, max: 30, step: 0.5 } },

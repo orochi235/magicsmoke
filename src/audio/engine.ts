@@ -40,6 +40,12 @@ const SPUTTER_SPREAD = 0.04;
 /** Clicks a burst that does not pop crackles with instead. */
 const BURST_CRACKLE = 10;
 const FIZZ_ENERGY = 0.35;
+/** The hum drifts on two random walks, one for level and one for pitch, stepped once a frame. */
+const HUM_DRIFT_STEP = 0.35;
+const HUM_DRIFT_PULL = 0.08;
+/** At full intensity and full wobble, the level swings this share either way, the pitch this many cents. */
+const HUM_SWELL = 0.55;
+const HUM_WARBLE_CENTS = 35;
 const FIZZ_MAX = 16;
 const RELEASE_SLACK_MS = 50;
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
@@ -80,6 +86,8 @@ export class AudioEngine {
   private noise: AudioBuffer | null = null;
   private hum: Hum | null = null;
   private humLevel = 0;
+  private humSwell = 0;
+  private humWarble = 0;
   private level: number;
   private silenced: boolean;
   private listening = false;
@@ -225,7 +233,8 @@ export class AudioEngine {
 
   /** 0..1, the loudest live fault's intensity; the hum starts on the first non-zero level. */
   setHum(level: number): void {
-    const value = clamp01(level) * this.tuning.hum.level;
+    const intensity = clamp01(level);
+    const value = intensity * this.tuning.hum.level;
     this.humLevel = value;
     const { ctx, master } = this;
     if (!ctx || !master) return;
@@ -233,7 +242,18 @@ export class AudioEngine {
       if (value === 0) return;
       this.hum = createHum(ctx, master, this.mains);
     }
-    this.hum.setLevel(value, ctx.currentTime);
+    // Squared, so a gentle fault barely wavers and a fault flat out surges and warbles.
+    const depth = (intensity * this.tuning.hum.wobble) ** 2;
+    this.humSwell = this.drift(this.humSwell);
+    this.humWarble = this.drift(this.humWarble);
+    const now = ctx.currentTime;
+    this.hum.setLevel(value * (1 + HUM_SWELL * depth * this.humSwell), now);
+    this.hum.wobble(HUM_WARBLE_CENTS * depth * this.humWarble, now);
+  }
+
+  private drift(walk: number): number {
+    const next = walk + (this.rng() - 0.5) * HUM_DRIFT_STEP - walk * HUM_DRIFT_PULL;
+    return Math.min(1, Math.max(-1, next));
   }
 
   dispose(): void {

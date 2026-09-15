@@ -19,6 +19,8 @@ const HUM_TIME_CONSTANT = 0.08;
 const HUM_SAG_CENTS = -30;
 const HUM_SAG_RECOVERY = 0.2;
 const HUM_STOP_FADE = 0.02;
+/** How quickly the pitch follows a wobble. */
+const HUM_WOBBLE_TIME_CONSTANT = 0.06;
 
 const CRACKLE_GAIN = 0.45;
 const CRACKLE_CUTOFF = 3000;
@@ -80,7 +82,10 @@ export interface Voice {
 }
 
 export interface Hum {
+  /** 0..2, where 1 is the hum at full; above 1 is room for a surge. */
   setLevel(level: number, when: number): void;
+  /** Pulls the pitch this many cents off mains, gliding there; separate from `sag`. */
+  wobble(cents: number, when: number): void;
   sag(when: number): void;
   stop(): void;
 }
@@ -271,7 +276,14 @@ export function createHum(ctx: BaseAudioContext, destination: AudioNode, mains: 
   return {
     setLevel(value, when) {
       if (stopped) return;
-      level.gain.setTargetAtTime(HUM_GAIN * clamp01(value), when, HUM_TIME_CONSTANT);
+      const bounded = Number.isFinite(value) ? Math.min(2, Math.max(0, value)) : 0;
+      level.gain.setTargetAtTime(HUM_GAIN * bounded, when, HUM_TIME_CONSTANT);
+    },
+    wobble(cents, when) {
+      if (stopped || !Number.isFinite(cents)) return;
+      const ratio = 2 ** (cents / 1200);
+      saw.frequency.setTargetAtTime(2 * mains * ratio, when, HUM_WOBBLE_TIME_CONSTANT);
+      square.frequency.setTargetAtTime(4 * mains * ratio, when, HUM_WOBBLE_TIME_CONSTANT);
     },
     sag(when) {
       if (stopped) return;
