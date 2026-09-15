@@ -14,38 +14,22 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 - **The portfolio** (`~/src/portfolio`, repo `orochi235.github.io`) deploys to michaelbaker.tech on
   every push to `main`. The masthead runs magicsmoke sparks inside klieg's scene, and the magicsmoke
   entry has a live tile. Both install klieg and magicsmoke from npm.
-- **klieg 0.13.1 is out and live on the masthead** with the overload flare (`power({ flare, onState })`,
-  `blowout()`, a `'flaring'` state). It rode along with the magicsmoke 0.1.2 deploy, since the
-  portfolio's `^0.13.0` resolved to it. Every short now flares by default, so the overload blows the
-  sign out bright — but **silently**: `intensity()` in the masthead mutes the fault in every state
-  but `'on'`, flaring included. The loud half below is what finishes it.
-
-## Next: move the overload flare into magicsmoke
-
-The ask, in the user's words: when the overload happens, "everything should be very loud and bright
-for a moment before it dies", and "pull the flare effect into magicsmoke — it probably makes more
-sense here". **No page flash** (photosensitivity). And it should **shudder violently as it climaxes**:
-the element shaking hard and fast, building to the peak of the flare, far past the 6px ordinary jolt,
-and skipped under reduced motion like the rest of the flare.
-
-Undecided, and worth settling before code:
-
-- **What moves.** klieg's `blowout()` brightens the sign's own glow, which is klieg's material, so a
-  plausible split is klieg keeping the sign's brightness and magicsmoke owning the loud moment — a
-  one-shot or fault verb that fires shower, burst and arc at full energy, a maximal pop, glow and
-  jolt, then lets the fault die. Confirm that split, and whether klieg's default flare should stay on.
-- **How the masthead triggers it.** klieg reports the state through `power({ onState })`. The
-  layer does not exist when the drive is created (`createMastheadDrive` in
-  `portfolio/src/lib/mastheadPower.ts`), so the listener has to reach something `wireMastheadSparks`
-  sets.
-
-Known wiring either way: `intensity()` in `portfolio/src/lib/mastheadSparks.ts` mutes the fault
-whenever the tube is not `'on'`; it must let `'flaring'` through and mute only `'shorted'` and
-`'warming'`. Every klieg short now flares by default; `power({ flare: null })` cuts straight to dark.
+- **The overload is loud as well as bright** as of magicsmoke 0.2.0. `fault.blow({ peak, after })`
+  surges the fault toward a climax while the element shudders, throws a volley of showers there, and
+  fades it to zero; the `blow` tuning group sets it, and the tuning lab has a blow button. The
+  masthead passes klieg its own flare (`overloadFlare` in `portfolio/src/lib/mastheadPower.ts`) and
+  calls `blow` on `'flaring'` with the same `OVERLOAD` timing.
+- **Not yet seen in a browser.** Tests and builds pass in both repos, but the Playwright MCP was down
+  this session, so the shudder (24 px), the volley (3 showers) and the surge (4×) are unwatched
+  defaults. Hold the masthead hover at full for 3 s to see one, and tune in the lab.
 
 ## Decisions made in conversation
 
 - Overload: the hover held at full for 3 s shorts the sign, which relights 3 s later with a strike.
+- The overload splits across the libraries: klieg owns the sign's brightness, magicsmoke owns the
+  sparks, sound and shudder. The flare builds for 1 s to 3× glow and collapses over 300 ms, and the
+  shudder and shower volley peak with it. No page flash, for photosensitivity. Under reduced motion
+  klieg skips the flare, so the masthead never blows.
 - The masthead shakes only past 90% intensity (`jolt: { from: 0.9 }`).
 - Moving the pointer drains intensity (`dwell` `drain`, 200 px); it models a localized disruption.
 - Pops keep their own clock: louder with intensity, never more frequent.
@@ -55,7 +39,7 @@ whenever the tube is not `'on'`; it must let `'flaring'` through and mute only `
 - Tuning is grouped by effect with a `from` threshold each, and `TUNING_SCHEMA` is plain data so a
   klieg lab can build controls from it. The tuning lab (`npm run dev`, `tuning.html`) is labkit.
 
-## Next after the flare: arcs from the cursor
+## Next: arcs from the cursor
 
 Decided in conversation: on the masthead, arcs jump **from the cursor itself to the nearest active
 surface** — a plasma-ball reach rather than physics. Accuracy is welcome but not required.
@@ -68,6 +52,7 @@ surface** — a plasma-ball reach rather than physics. Accuracy is welcome but n
   wants its own `arcs.from` and a higher `fault.arcShare`, set in the tuning lab.
 - Arcs have only ever drawn in the flat overlay; they have not been seen under klieg's perspective
   camera.
+- Once the masthead fault has a `to`, a blow's climax arcs too.
 
 ## Still open
 
