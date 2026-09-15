@@ -50,11 +50,24 @@ whenever the tube is not `'on'`; it must let `'flaring'` through and mute only `
 - Tuning is grouped by effect with a `from` threshold each, and `TUNING_SCHEMA` is plain data so a
   klieg lab can build controls from it. The tuning lab (`npm run dev`, `tuning.html`) is labkit.
 
+## Next after the flare: arcs from the cursor
+
+Decided in conversation: on the masthead, arcs jump **from the cursor itself to the nearest active
+surface** — a plasma-ball reach rather than physics. Accuracy is welcome but not required.
+
+- One end is the pointer carried onto the sign's depth (the hit's world point offset by the pixel
+  distance times `unitsPerPx`, y flipped); the other is the nearest lit stroke, found by probing
+  outward the way `pointNear` does but farther than its 16px.
+- Only a lit tube draws one: no arcs while klieg reports the tube `'shorted'` or `'warming'`.
+- At today's tuning an arc strikes about once every three seconds at full intensity, so this likely
+  wants its own `arcs.from` and a higher `fault.arcShare`, set in the tuning lab.
+- Arcs have only ever drawn in the flat overlay; they have not been seen under klieg's perspective
+  camera.
+
 ## Still open
 
 - The magicsmoke portfolio entry's body text went live without the user reviewing it
   (`portfolio/src/projects/magicsmoke.ts`).
-- The masthead never arcs: its fault has no `to` point.
 - Sparks read pale gold under klieg's bloom rather than orange.
 - `WindeaseTile.tsx` throws `undo is not a function` intermittently; not magicsmoke's.
 - The merged `magicsmoke-masthead` branch still exists locally and on GitHub.
