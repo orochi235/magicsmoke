@@ -169,6 +169,14 @@ describe('createLayer', () => {
     expect(animate).toHaveBeenCalled();
   });
 
+  it('holds its whine between 0 and 1, with no sound to play it on', () => {
+    const { layer } = setup();
+    layer.whine = 3;
+    expect(layer.whine).toBe(1);
+    layer.whine = Number.NaN;
+    expect(layer.whine).toBe(0);
+  });
+
   it('clamps one-shot energy', () => {
     const { layer, seen } = setup();
     layer.burst(origin, 5);

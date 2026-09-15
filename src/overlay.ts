@@ -33,6 +33,8 @@ export interface Overlay {
   readonly tuning: Tuning;
   volume: number;
   muted: boolean;
+  /** See `Layer.whine`. */
+  whine: number;
   sputter(at: Point, energy?: number): void;
   burst(at: Point, energy?: number): void;
   shower(at: Point, energy?: number): void;
@@ -115,6 +117,7 @@ class Unsupported implements Overlay {
   readonly tuning: Tuning = resolveTuning();
   volume = 0.8;
   muted = false;
+  whine = 0;
   sputter(): void {}
   burst(): void {}
   shower(): void {}
@@ -183,6 +186,14 @@ class WebGLOverlay implements Overlay {
 
   set muted(value: boolean) {
     this.layer.muted = value;
+  }
+
+  get whine(): number {
+    return this.layer.whine;
+  }
+
+  set whine(value: number) {
+    this.layer.whine = value;
   }
 
   sputter(at: Point, energy?: number): void {

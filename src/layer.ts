@@ -73,6 +73,11 @@ export interface Layer {
   readonly tuning: Tuning;
   volume: number;
   muted: boolean;
+  /**
+   * 0..1: a high ballast whine, as a tube makes while it strikes. It comes in at once and, set back
+   * down, fades out over `tuning.whine.fade` seconds. It follows no fault; the host sets it.
+   */
+  whine: number;
   /** Moves the floor bouncing sparks land on; `null` removes it. */
   setFloor(y: number | null): void;
   /** Advances everything by `dt` seconds. Call it once a frame. */
@@ -173,6 +178,7 @@ class MagicLayer implements Layer {
   private disposed = false;
   private quietVolume = 0.8;
   private quietMuted = false;
+  private whineLevel = 0;
 
   constructor(options: LayerOptions) {
     this.rng = mulberry32(options.seed ?? Math.floor(Math.random() * 4294967296));
@@ -225,6 +231,15 @@ class MagicLayer implements Layer {
   set muted(value: boolean) {
     if (this.audio) this.audio.muted = value;
     else this.quietMuted = value;
+  }
+
+  get whine(): number {
+    return this.whineLevel;
+  }
+
+  set whine(value: number) {
+    this.whineLevel = clamp01(value);
+    if (!this.disposed) this.audio?.setWhine(this.whineLevel);
   }
 
   setFloor(y: number | null): void {

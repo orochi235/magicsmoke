@@ -38,5 +38,6 @@ export {
   type TuningGroup,
   type TuningOverrides,
   type TuningSchema,
+  type WhineTuning,
 } from './tuning.js';
 export type { Discharge, DischargeKind, Point, Vec3 } from './types.js';

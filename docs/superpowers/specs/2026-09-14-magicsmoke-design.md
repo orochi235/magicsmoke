@@ -223,6 +223,10 @@ pop three seconds late sounds broken. A fault live at unlock starts its hum then
   ±0.4 of the source.
 - **Arc buzz:** sawtooth at twice mains through a `tanh` waveshaper and a 1.2 kHz band-pass, plus
   hiss above 5 kHz, gated to the strike with 3 ms ramps.
+- **Whine:** a ballast singing as a tube strikes — a sine at `tuning.whine.pitch` (2.4 kHz) with its
+  octave a quarter as loud, 35% of its level pulsing at twice mains and an 8-cent vibrato at 5.3 Hz.
+  It follows `layer.whine`, which the host sets rather than any fault: in with a 30 ms time constant,
+  and out over `tuning.whine.fade` seconds.
 
 **Pop timing.** Pops keep their own irregular clock — exponential gaps averaging 0.7 s, never
 under 0.12 s — and take whichever discharge arrives when it opens. A fault turned up gets louder pops,
@@ -236,11 +240,11 @@ quietest active voice is stopped for it.
 ## Tuning
 
 `tuning` is one object grouped by effect — `fault`, `blow`, `sparks`, `fizz`, `arcs`, `glow`, `lights`,
-`crackle`, `pops`, `hum`, `jolt`, `haptics`, `pageFlash` — read as each effect is used, so writes take
+`crackle`, `pops`, `hum`, `whine`, `jolt`, `haptics`, `pageFlash` — read as each effect is used, so writes take
 effect at once. `createLayer({ tuning })` lays overrides over `DEFAULT_TUNING` group by group, as
 `resolveTuning` does.
 
-Every group but `fault` and `blow` has a `from`: the fault intensity where that effect starts. Below it the
+Every group but `fault`, `blow` and `whine` has a `from`: the fault intensity where that effect starts. Below it the
 effect is off; above it, whatever scales with intensity — jolt strength, pop loudness, fizz rate, hum
 level — ramps from zero at `from` to full at 1. One-shots carry no intensity, so thresholds never
 hold them back.

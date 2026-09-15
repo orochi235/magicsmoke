@@ -7,6 +7,7 @@ import {
   arcLevel,
   crackleLevel,
   createHum,
+  createWhine,
   type Hum,
   noiseBuffer,
   playArcBuzz,
@@ -16,6 +17,7 @@ import {
   popLevel,
   showerLevel,
   type Voice,
+  type Whine,
 } from './voices.js';
 
 const DEFAULT_VOLUME = 0.8;
@@ -47,6 +49,8 @@ const HUM_DRIFT_PULL = 0.08;
 const HUM_SWELL = 0.55;
 const HUM_WARBLE_CENTS = 35;
 const FIZZ_MAX = 16;
+/** Time constant of the whine coming in; it goes out over `tuning.whine.fade`. */
+const WHINE_RISE = 0.03;
 const RELEASE_SLACK_MS = 50;
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 
@@ -58,7 +62,7 @@ export interface AudioGate {
   pop: number | null;
 }
 
-export type AudioTuning = Pick<Tuning, 'crackle' | 'pops' | 'hum'>;
+export type AudioTuning = Pick<Tuning, 'crackle' | 'pops' | 'hum' | 'whine'>;
 
 export interface AudioOptions {
   volume?: number;
@@ -88,6 +92,8 @@ export class AudioEngine {
   private humLevel = 0;
   private humSwell = 0;
   private humWarble = 0;
+  private whine: Whine | null = null;
+  private whineLevel = 0;
   private level: number;
   private silenced: boolean;
   private listening = false;
@@ -251,6 +257,25 @@ export class AudioEngine {
     this.hum.wobble(HUM_WARBLE_CENTS * depth * this.humWarble, now);
   }
 
+  /** 0..1. Comes in at once and, set lower, falls away over `tuning.whine.fade` seconds. */
+  setWhine(level: number): void {
+    const target = clamp01(level);
+    const rising = target > 0 && target >= this.whineLevel;
+    this.whineLevel = target;
+    const { ctx, master } = this;
+    if (!ctx || !master) return;
+    const tuning = this.tuning.whine;
+    if (!this.whine) {
+      if (target === 0) return;
+      this.whine = createWhine(ctx, master, this.mains, tuning.pitch);
+    }
+    const now = ctx.currentTime;
+    this.whine.setPitch(tuning.pitch, now);
+    // Five time constants leave under 1% of the level, which is silence against a whine this quiet.
+    const tau = rising ? WHINE_RISE : Math.max(tuning.fade, 0.01) / 5;
+    this.whine.setLevel(target * tuning.level, now, tau);
+  }
+
   private drift(walk: number): number {
     const next = walk + (this.rng() - 0.5) * HUM_DRIFT_STEP - walk * HUM_DRIFT_PULL;
     return Math.min(1, Math.max(-1, next));
@@ -267,6 +292,8 @@ export class AudioEngine {
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.hum?.stop();
     this.hum = null;
+    this.whine?.stop();
+    this.whine = null;
     settle(ctx.close());
     this.ctx = null;
     this.master = null;
@@ -290,6 +317,7 @@ export class AudioEngine {
     document.addEventListener('visibilitychange', this.onVisibility);
     if (document.hidden) settle(ctx.suspend());
     if (this.humLevel > 0) this.setHum(this.humLevel);
+    if (this.whineLevel > 0) this.setWhine(this.whineLevel);
   }
 
   private unlisten(): void {

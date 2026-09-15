@@ -1,6 +1,7 @@
 import { AudioEngine } from '../src/audio/engine.js';
 import {
   createHum,
+  createWhine,
   noiseBuffer,
   playArcBuzz,
   playCrackle,
@@ -10,7 +11,7 @@ import {
 import { createOverlay } from '../src/overlay.js';
 import { mulberry32 } from '../src/rng.js';
 
-export type VoiceName = 'pop' | 'crackle' | 'shower' | 'arc' | 'hum';
+export type VoiceName = 'pop' | 'crackle' | 'shower' | 'arc' | 'hum' | 'whine';
 
 export interface VoiceReport {
   peak: number;
@@ -43,6 +44,12 @@ async function renderVoice(name: VoiceName, energy: number): Promise<VoiceReport
     expectedEnd = playArcBuzz(ctx, ctx.destination, { ...base, duration: 0.2, mains: 60 }).end;
   }
   if (name === 'hum') createHum(ctx, ctx.destination, 60).setLevel(1, 0);
+  if (name === 'whine') {
+    // In at once, then set down at 0.5 s to fade over the default 0.8 s.
+    const whine = createWhine(ctx, ctx.destination, 60, 2400);
+    whine.setLevel(1, 0, 0.03);
+    whine.setLevel(0, 0.5, 0.8 / 5);
+  }
 
   const buffer = await ctx.startRendering();
   let peak = 0;

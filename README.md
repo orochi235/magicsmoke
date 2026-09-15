@@ -52,7 +52,8 @@ renderer.setAnimationLoop((time) => {
 
 A fault given a `to` point arcs to it. `fault.blow({ peak, after })` overloads a fault: it
 discharges ever faster and harder while the element shakes, throws a volley of showers at the climax
-`peak` milliseconds later, and dies out over `after`. Time `peak` to a sign's own flare.
+`peak` milliseconds later, and dies out over `after`. Time `peak` to a sign's own flare. `layer.whine`, from 0 to 1, is a high ballast whine for a
+tube striking back on: it comes in at once and fades out when set back to 0.
 `layer.live` is false once nothing is moving, lit or
 sounding, so a host can stop rendering.
 

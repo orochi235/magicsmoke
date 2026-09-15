@@ -30,6 +30,16 @@ test('the hum sounds steadily at full level', async ({ page }) => {
   expect(report.lastAudible).toBeGreaterThan(1.4);
 });
 
+test('the whine sounds, stays under full scale and fades out after it is set down', async ({
+  page,
+}) => {
+  const report = await page.evaluate(() => window.harness.renderVoice('whine', 1));
+  expect(report.rms).toBeGreaterThan(0.005);
+  expect(report.peak).toBeLessThanOrEqual(1);
+  expect(report.lastAudible).toBeGreaterThan(0.6);
+  expect(report.lastAudible).toBeLessThan(1.45);
+});
+
 test('nothing unlocks audio until the page is clicked', async ({ page }) => {
   expect(await page.evaluate(() => window.harness.engineUnlocked())).toBe(false);
   await page.mouse.click(10, 10);

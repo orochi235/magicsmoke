@@ -22,6 +22,15 @@ const HUM_STOP_FADE = 0.02;
 /** How quickly the pitch follows a wobble. */
 const HUM_WOBBLE_TIME_CONSTANT = 0.06;
 
+/** A high tone is piercing at a level the hum would be quiet at. */
+const WHINE_GAIN = 0.05;
+const WHINE_OCTAVE_MIX = 0.25;
+/** Share of the whine's level that pulses at twice mains, which is what makes it a ballast, not a beep. */
+const WHINE_BUZZ_DEPTH = 0.35;
+const WHINE_VIBRATO_HZ = 5.3;
+const WHINE_VIBRATO_CENTS = 8;
+const WHINE_STOP_FADE = 0.02;
+
 const CRACKLE_GAIN = 0.45;
 const CRACKLE_CUTOFF = 3000;
 const CLICK_MIN = 0.001;
@@ -87,6 +96,13 @@ export interface Hum {
   /** Pulls the pitch this many cents off mains, gliding there; separate from `sag`. */
   wobble(cents: number, when: number): void;
   sag(when: number): void;
+  stop(): void;
+}
+
+export interface Whine {
+  /** 0..2, reached with time constant `tau` seconds. */
+  setLevel(level: number, when: number, tau: number): void;
+  setPitch(hz: number, when: number): void;
   stop(): void;
 }
 
@@ -240,6 +256,66 @@ function bakeClicks(
 
 function randomGain(level: number, rng: Rng): number {
   return level * (CLICK_FLOOR + (1 - CLICK_FLOOR) * rng());
+}
+
+/** A tube's ballast singing as it strikes: a sine at `pitch` over its octave, buzzing at twice mains. */
+export function createWhine(
+  ctx: BaseAudioContext,
+  destination: AudioNode,
+  mains: 50 | 60,
+  pitch: number,
+): Whine {
+  const tone = new OscillatorNode(ctx, { type: 'sine', frequency: pitch });
+  const octave = new OscillatorNode(ctx, { type: 'sine', frequency: 2 * pitch });
+  const octaveMix = new GainNode(ctx, { gain: WHINE_OCTAVE_MIX });
+  const buzz = new GainNode(ctx, { gain: 1 - WHINE_BUZZ_DEPTH });
+  const level = new GainNode(ctx, { gain: 0 });
+  tone.connect(buzz);
+  octave.connect(octaveMix).connect(buzz);
+  buzz.connect(level).connect(destination);
+  const mainsLfo = new OscillatorNode(ctx, { frequency: 2 * mains });
+  const buzzAmount = new GainNode(ctx, { gain: WHINE_BUZZ_DEPTH });
+  mainsLfo.connect(buzzAmount).connect(buzz.gain);
+  const vibrato = new OscillatorNode(ctx, { frequency: WHINE_VIBRATO_HZ });
+  const vibratoAmount = new GainNode(ctx, { gain: WHINE_VIBRATO_CENTS });
+  vibrato.connect(vibratoAmount);
+  vibratoAmount.connect(tone.detune);
+  vibratoAmount.connect(octave.detune);
+
+  const oscillators: OscillatorNode[] = [tone, octave, mainsLfo, vibrato];
+  const nodes: AudioNode[] = [...oscillators, octaveMix, buzz, level, buzzAmount, vibratoAmount];
+  const started = ctx.currentTime;
+  for (const oscillator of oscillators) oscillator.start(started);
+
+  let stopped = false;
+  const release = (): void => {
+    for (const node of nodes) node.disconnect();
+  };
+  return {
+    setLevel(value, when, tau) {
+      if (stopped) return;
+      const bounded = Number.isFinite(value) ? Math.min(2, Math.max(0, value)) : 0;
+      level.gain.setTargetAtTime(WHINE_GAIN * bounded, when, Math.max(0.001, tau));
+    },
+    setPitch(hz, when) {
+      if (stopped || !(hz > 0)) return;
+      tone.frequency.setValueAtTime(hz, when);
+      octave.frequency.setValueAtTime(2 * hz, when);
+    },
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      try {
+        const now = ctx.currentTime;
+        level.gain.cancelScheduledValues(now);
+        level.gain.setTargetAtTime(0, now, WHINE_STOP_FADE);
+        tone.onended = release;
+        for (const oscillator of oscillators) oscillator.stop(now + WHINE_STOP_FADE * 6);
+      } catch {
+        release();
+      }
+    },
+  };
 }
 
 export function createHum(ctx: BaseAudioContext, destination: AudioNode, mains: 50 | 60): Hum {

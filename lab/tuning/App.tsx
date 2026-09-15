@@ -76,6 +76,7 @@ export function App() {
   const [rig, setRig] = useState<Rig | null>(null);
   const [level, setLevel] = useState(0);
   const [notice, setNotice] = useState('');
+  const [whine, setWhine] = useState(false);
   const [stored, setStored] = usePersistedState<Tuning>('tuning', () => resolveTuning());
   const [savedStage, setSavedStage] = usePersistedState<StageSettings>('stage', STAGE);
   // Stored values predate any group or setting added since, so defaults fill the gaps.
@@ -124,6 +125,10 @@ export function App() {
   useEffect(() => {
     if (rig) rig.standing.intensity = stage.hold;
   }, [rig, stage.hold]);
+
+  useEffect(() => {
+    if (rig) rig.overlay.whine = whine ? 1 : 0;
+  }, [rig, whine]);
 
   useEffect(() => {
     if (!rig) return;
@@ -258,6 +263,7 @@ export function App() {
                 format={two}
                 onChange={(v) => setStage('volume', v)}
               />
+              <CheckboxRow label="Whine" value={whine} onChange={setWhine} />
               <CheckboxRow
                 label="Muted"
                 value={stage.muted}

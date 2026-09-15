@@ -16,6 +16,8 @@ describe('AudioEngine without Web Audio', () => {
       engine.crackle(4, -0.5);
       engine.setHum(1);
       engine.setHum(0);
+      engine.setWhine(1);
+      engine.setWhine(0);
       engine.volume = 0.5;
       engine.muted = true;
       engine.dispose();
