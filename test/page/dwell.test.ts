@@ -43,6 +43,15 @@ describe('dwell', () => {
     expect(d.value).toBeCloseTo(0.5, 1);
   });
 
+  it('falls when the browser takes a touch over for scrolling', () => {
+    const d = dwell(element, { rise: 1000, fall: 600 });
+    element.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(1000);
+    element.dispatchEvent(new Event('pointercancel'));
+    vi.advanceTimersByTime(700);
+    expect(d.value).toBe(0);
+  });
+
   it('stops requesting frames once settled', () => {
     dwell(element, { rise: 100, fall: 100 });
     element.dispatchEvent(new Event('pointerenter'));

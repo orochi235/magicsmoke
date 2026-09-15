@@ -19,7 +19,7 @@ describe('createLayer', () => {
   it('discharges at the fault while it runs', () => {
     const { layer, seen, advance } = setup();
     layer.fault({ at: { x: 1, y: 2, z: 0 }, intensity: 1 });
-    advance(1);
+    advance(3);
     expect(seen.length).toBeGreaterThan(5);
     expect(seen.every((d) => d.at.x === 1 && d.at.y === 2)).toBe(true);
   });
@@ -27,14 +27,14 @@ describe('createLayer', () => {
   it('arcs only when the fault has somewhere to land', () => {
     const grounded = setup();
     grounded.layer.fault({ at: origin, to: { x: 100, y: 0, z: 0 }, intensity: 1 });
-    grounded.advance(5);
+    grounded.advance(30);
     const arcs = grounded.seen.filter((d) => d.kind === 'arc');
     expect(arcs.length).toBeGreaterThan(0);
     expect(arcs.every((d) => d.to?.x === 100 && (d.duration ?? 0) > 0)).toBe(true);
 
     const floating = setup();
     floating.layer.fault({ at: origin, intensity: 1 });
-    floating.advance(5);
+    floating.advance(30);
     expect(floating.seen.some((d) => d.kind === 'arc')).toBe(false);
   });
 

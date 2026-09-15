@@ -65,6 +65,21 @@ describe('FaultProcess', () => {
     expect(process.fizzRate).toBeCloseTo(T.fizzPerSecond * 0.5, 1);
   });
 
+  it('spaces showers at least the cooldown apart', () => {
+    const showers = run(1, 600)
+      .filter((d) => d.kind === 'shower')
+      .map((d) => d.time);
+    expect(showers.length).toBeGreaterThan(20);
+    const gaps = showers.slice(1).map((t, i) => t - (showers[i] ?? 0));
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(T.showerCooldown - 1e-9);
+  });
+
+  it('throws mostly small discharges even at full intensity', () => {
+    const drafts = run(1, 600);
+    const small = drafts.filter((d) => d.kind === 'sputter').length;
+    expect(small / drafts.length).toBeGreaterThan(0.6);
+  });
+
   it('keeps one seed’s sequence stable', () => {
     const drafts = run(0.7, 5, 1 / 60, 7)
       .slice(0, 20)

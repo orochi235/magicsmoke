@@ -1,6 +1,7 @@
 import { fork, type Rng } from '../rng.js';
 import type { Discharge } from '../types.js';
 import { VoiceCap } from './cap.js';
+import { PopGate } from './pop-gate.js';
 import {
   arcLevel,
   crackleLevel,
@@ -32,12 +33,13 @@ const LIMITER: DynamicsCompressorOptions = {
 };
 const SAG_ENERGY = 0.6;
 const ARC_DURATION = 0.12;
-const ARC_POP_SCALE = 0.8;
+/** A pop at intensity 0 still sounds at this share of full. */
+const POP_FLOOR = 0.2;
 const SPUTTER_MIN = 3;
 const SPUTTER_MAX = 8;
 const SPUTTER_SPREAD = 0.04;
-const SPUTTER_POP_ENERGY = 0.15;
-const SPUTTER_POP_SCALE = 0.4;
+/** Clicks a burst that does not pop crackles with instead. */
+const BURST_CRACKLE = 10;
 const FIZZ_ENERGY = 0.35;
 const FIZZ_MAX = 16;
 const RELEASE_SLACK_MS = 50;
@@ -61,6 +63,7 @@ export class AudioEngine {
   private readonly rng: Rng;
   private readonly mains: 50 | 60;
   private readonly cap = new VoiceCap(MAX_VOICES);
+  private readonly pops: PopGate;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -87,6 +90,7 @@ export class AudioEngine {
 
   constructor(options: AudioOptions, rng: Rng) {
     this.rng = fork(rng);
+    this.pops = new PopGate(this.rng);
     this.level = Number.isFinite(options.volume)
       ? Math.max(0, options.volume ?? 0)
       : DEFAULT_VOLUME;
@@ -132,23 +136,34 @@ export class AudioEngine {
     const when = ctx.currentTime + LEAD;
     const energy = clamp01(d.energy);
     const base = { noise, when, pan, rng: this.rng };
+    // Pops keep their own clock and follow the fault's intensity, so turning a fault up makes them
+    // louder rather than more frequent.
+    const pop = this.pops.allow(d.kind, when);
+    const loud = POP_FLOOR + (1 - POP_FLOOR) * clamp01(d.intensity ?? energy);
     switch (d.kind) {
       case 'sputter': {
         const count = Math.round(SPUTTER_MIN + (SPUTTER_MAX - SPUTTER_MIN) * energy);
         this.play(crackleLevel(energy), () =>
           playCrackle(ctx, master, { ...base, energy, count, spread: SPUTTER_SPREAD }),
         );
-        if (energy > SPUTTER_POP_ENERGY) {
-          const quiet = energy * SPUTTER_POP_SCALE;
-          this.play(popLevel(quiet), () => playPop(ctx, master, { ...base, energy: quiet }));
-        }
         break;
       }
       case 'burst':
-        this.play(popLevel(energy), () => playPop(ctx, master, { ...base, energy }));
+        if (!pop) {
+          this.play(crackleLevel(energy), () =>
+            playCrackle(ctx, master, {
+              ...base,
+              energy,
+              count: BURST_CRACKLE,
+              spread: SPUTTER_SPREAD,
+            }),
+          );
+        }
         break;
       case 'shower':
-        this.play(showerLevel(energy), () => playShowerTail(ctx, master, { ...base, energy }));
+        this.play(showerLevel(energy), () =>
+          playShowerTail(ctx, master, { ...base, energy, pop: false }),
+        );
         break;
       case 'arc': {
         const duration = d.duration ?? ARC_DURATION;
@@ -156,11 +171,10 @@ export class AudioEngine {
         this.play(arcLevel(energy), () =>
           playArcBuzz(ctx, master, { ...base, energy, duration, mains }),
         );
-        const strike = energy * ARC_POP_SCALE;
-        this.play(popLevel(strike), () => playPop(ctx, master, { ...base, energy: strike }));
         break;
       }
     }
+    if (pop) this.play(popLevel(loud), () => playPop(ctx, master, { ...base, energy: loud }));
     if (energy > SAG_ENERGY) this.hum?.sag(when);
   }
 

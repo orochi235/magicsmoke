@@ -38,7 +38,7 @@ describe('kindFor', () => {
   it('sorts discharges by energy', () => {
     expect(kindFor(0.2, false, 0.9, T)).toBe('sputter');
     expect(kindFor(0.5, false, 0.9, T)).toBe('burst');
-    expect(kindFor(0.7, false, 0.9, T)).toBe('shower');
+    expect(kindFor(0.8, false, 0.9, T)).toBe('shower');
   });
 
   it('arcs a share of the energetic discharges when it can', () => {

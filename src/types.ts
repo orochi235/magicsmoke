@@ -22,4 +22,6 @@ export interface Discharge {
   duration?: number;
   /** 0..1 */
   energy: number;
+  /** The intensity of the fault that discharged, 0..1. One-shots carry none. */
+  intensity?: number;
 }

@@ -39,6 +39,7 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
     dispose() {
       element.removeEventListener('pointerenter', enter);
       element.removeEventListener('pointerleave', leave);
+      element.removeEventListener('pointercancel', leave);
       element.removeEventListener('pointermove', move);
       if (frame !== null) cancelAnimationFrame(frame);
       frame = null;
@@ -97,6 +98,8 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
 
   element.addEventListener('pointerenter', enter);
   element.addEventListener('pointerleave', leave);
+  // A touch the browser takes over for scrolling ends in a cancel, not always a leave.
+  element.addEventListener('pointercancel', leave);
   element.addEventListener('pointermove', move);
   return state;
 }

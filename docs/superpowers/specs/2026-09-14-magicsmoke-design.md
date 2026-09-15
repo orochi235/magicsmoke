@@ -79,7 +79,8 @@ interface Dwell {
 ```
 
 `value` climbs linearly to 1 over `rise` ms while the pointer stays over the element and falls
-over `fall` ms after it leaves. The masthead needs nothing more:
+over `fall` ms after it leaves. A `pointercancel` — a touch the browser has taken over for
+scrolling — counts as leaving. The masthead needs nothing more:
 
 ```ts
 const fx = createOverlay({ sound: true });
@@ -115,20 +116,20 @@ spark, its pop, its flash and its jolt on the same frame.
 
 All constants live in `src/fault/tuning.ts`.
 
-**Timing** is a self-exciting random process. The base rate is `r(k) = 0.5 + 11.5·k²` per second.
+**Timing** is a self-exciting random process. The base rate is `r(k) = 0.3 + 2.2·k²` per second.
 Each discharge adds 3.3/s to the rate, decaying with τ = 150 ms: a branching ratio of 0.5, so the
-long-run rate is about twice the base (1.2/s at k = 0.1, 24/s at k = 1) and discharges bunch into
+long-run rate is about twice the base (0.6/s at k = 0.1, 5/s at k = 1) and discharges bunch into
 stutters rather than keeping time. The process advances in fixed 5 ms substeps from an accumulator,
 so the sequence for a seed does not depend on how the host chunks its frames. `update` clamps `dt`
 to 50 ms, so a backgrounded tab does not release a backlog.
 
-**Energy** is `min(1, u³·(0.35 + 0.65k) + 0.1k)` for uniform `u`: mostly small, occasionally large,
-and the whole distribution rises with intensity. Energy picks the kind — below 0.25 a sputter flare,
-below 0.6 a burst, above that a shower — and a fault with `to` turns half of its discharges above
-0.45 into arcs. Energy then scales particle count, flash strength, pop loudness, jolt amplitude and
+**Energy** is `min(1, u⁸·(0.35 + 0.65k) + 0.1k)` for uniform `u`: almost all small, rarely large,
+and the whole distribution rises with intensity. Energy picks the kind — below 0.25 a sputter flare, below 0.75 a burst, above that a shower — and a
+fault with `to` turns half of its discharges above 0.45 into arcs. A shower due within 2.5 s of the
+last becomes a burst, so showers stay occasional and land harder for it. Energy then scales particle count, flash strength, pop loudness, jolt amplitude and
 vibration length.
 
-**Between discharges** a fault above zero fizzes continuously at `at` (about 20·k small sparks a
+**Between discharges** a fault above zero fizzes continuously at `at` (about 4·k small sparks a
 second) and hums at a level proportional to k.
 
 **Intensity** eases toward each write with τ = 100 ms. At zero a fault is dark and silent.
@@ -146,9 +147,9 @@ Shared behaviors: `ColorOverLife` cools white → yellow → orange → red whil
 
 | Kind | Count | Speed px/s | Life s | Drag | Floor |
 | --- | --- | --- | --- | --- | --- |
-| sputter flare | 3–14 | 40–380 | 0.15–0.70 | light | yes |
-| burst | 20–40 | 350–900 | 0.12–0.35 | heavy | no |
-| shower | 40–90 | 120–520 | 0.40–1.30 | light | yes |
+| sputter flare | 1–4 | 40–380 | 0.15–0.60 | light | yes |
+| burst | 4–12, larger | 250–700 | 0.25–0.60 | medium | no |
+| shower | 60–120 | 150–600 | 0.50–1.40 | light | yes |
 
 Counts scale with energy and halve under reduced motion.
 
@@ -157,10 +158,11 @@ place the camera is known, by midpoint displacement between `from` and `to`, wit
 about half the frames. Three additive passes — wide faint blue, mid, white core — stand in for
 bloom, which destroys canvas transparency.
 
-**Flash** is a glow sprite at the discharge point, always, plus a pool of four `PointLight`s. The
-pool's lights stay in the scene at intensity 0 when idle: changing the number of lights in a scene
-recompiles every lit material in it. Whether klieg's tube materials respond to point lights is
-unverified. `pageFlash` adds a full-page white pulse on discharges above 0.8 energy, off by default
+**Flash** is a glow sprite at the discharge point, always, whose opacity follows energy squared, plus
+a pool of four `PointLight`s. A flash landing near a glow still lit relights that glow instead of
+adding another: additive glows stacked on one spot sum past white into a flat disc. The pool's lights
+stay in the scene at intensity 0 when idle: changing the number of lights in a scene recompiles every
+lit material in it. Whether klieg's tube materials respond to point lights is unverified. `pageFlash` adds a full-page white pulse on discharges above 0.8 energy, off by default
 for photosensitivity.
 
 ## Page effects
@@ -194,12 +196,17 @@ pop three seconds late sounds broken. A fault live at unlock starts its hum then
   −30 cents, recovering over 200 ms — the load sag.
 - **Crackle:** 1–8 ms slices of a seeded two-second noise buffer, high-passed at 3 kHz, at the
   fault's fizz rate.
-- **Pop:** 5–20 ms of noise through a band-pass sweeping 2.5 kHz → 400 Hz, over a 70 Hz sine
-  thump decaying in 40 ms. Energy scales both.
-- **Shower tail:** a pop, then 20–60 crackle clicks at exponentially widening gaps over 0.6 s, each
-  panned within ±0.4 of the source.
+- **Pop:** noise through a band-pass sweeping down from 1.6–4.2 kHz to 250–800 Hz at Q 2–7, over a
+  45–110 Hz thump on about two pops in three, with a weaker second crack on about one in five. Every
+  range is drawn per pop, so no two sound alike. Loudness follows the fault's intensity.
+- **Shower tail:** 20–60 crackle clicks at exponentially widening gaps over 0.6 s, each panned within
+  ±0.4 of the source.
 - **Arc buzz:** sawtooth at twice mains through a `tanh` waveshaper and a 1.2 kHz band-pass, plus
   hiss above 5 kHz, gated to the strike with 3 ms ramps.
+
+**Pop timing.** Pops keep their own irregular clock — exponential gaps averaging 0.7 s, never
+under 0.12 s — and take whichever discharge arrives when it opens. A fault turned up gets louder pops,
+not more of them. A shower always pops.
 
 **Cap.** At most 24 voices. A new voice quieter than every active one is dropped; otherwise the
 quietest active voice is stopped for it.

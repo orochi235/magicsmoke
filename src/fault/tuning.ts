@@ -7,7 +7,8 @@ export interface Tuning {
   exciteTau: number;
   /** Time constant, in seconds, for intensity to follow a new value. */
   easeTau: number;
-  /** Energy is `u³·(energyFloor + energyGain·k) + energyLift·k`, capped at 1. */
+  /** Energy is `u^energyPower·(energyFloor + energyGain·k) + energyLift·k`, capped at 1. */
+  energyPower: number;
   energyFloor: number;
   energyGain: number;
   energyLift: number;
@@ -16,6 +17,8 @@ export interface Tuning {
   /** A fault that can arc turns `arcShare` of its discharges at or above `arcFrom` into arcs. */
   arcFrom: number;
   arcShare: number;
+  /** Seconds after a shower before the fault can throw another; one due sooner is a burst. */
+  showerCooldown: number;
   /** Small sparks a second a fault at intensity 1 fizzes between discharges. */
   fizzPerSecond: number;
 }
@@ -25,17 +28,19 @@ export interface Tuning {
  * base rate; at 1 or above the process runs away.
  */
 export const DEFAULT_TUNING: Readonly<Tuning> = {
-  baseRate: 0.5,
-  rateCurve: 11.5,
+  baseRate: 0.3,
+  rateCurve: 2.2,
   exciteBoost: 3.3,
   exciteTau: 0.15,
   easeTau: 0.1,
+  energyPower: 8,
   energyFloor: 0.35,
   energyGain: 0.65,
   energyLift: 0.1,
   sputterBelow: 0.25,
-  burstBelow: 0.6,
+  burstBelow: 0.75,
   arcFrom: 0.45,
   arcShare: 0.5,
-  fizzPerSecond: 20,
+  showerCooldown: 2.5,
+  fizzPerSecond: 4,
 };

@@ -33,13 +33,21 @@ const POP_NOISE_BOOST = 2.5;
 const POP_THUMP_MIX = 0.7;
 const POP_NOISE_MIN = 0.005;
 const POP_NOISE_MAX = 0.02;
-const POP_SWEEP_FROM = 2500;
-const POP_SWEEP_TO = 400;
-const POP_Q = 4;
+/** Every pop draws its own sweep, sharpness, length and body from these ranges. */
+const POP_SWEEP_FROM: Range = [1600, 4200];
+const POP_SWEEP_TO: Range = [250, 800];
+const POP_Q: Range = [2, 7];
+const POP_LENGTH_SCALE: Range = [0.6, 1.6];
+const POP_LEVEL_SCALE: Range = [0.6, 1];
 const POP_ATTACK = 0.001;
-const POP_THUMP_HZ = 70;
+const POP_THUMP_CHANCE = 0.65;
+const POP_THUMP_HZ: Range = [45, 110];
 const POP_THUMP_ATTACK = 0.002;
-const POP_THUMP_DECAY = 0.04;
+const POP_THUMP_DECAY: Range = [0.025, 0.075];
+/** Some pops arc twice: a weaker second crack a moment after the first. */
+const POP_ECHO_CHANCE = 0.22;
+const POP_ECHO_DELAY: Range = [0.012, 0.042];
+const POP_ECHO_LEVEL: Range = [0.3, 0.7];
 
 const TAIL_GAIN = 0.35;
 const TAIL_MIN = 20;
@@ -60,6 +68,10 @@ const ARC_HISS_CUTOFF = 5000;
 const ARC_HISS_MIX = 0.35;
 const ARC_RAMP = 0.003;
 const ARC_DETUNE_CENTS = 8;
+
+type Range = readonly [number, number];
+
+const pick = ([low, high]: Range, rng: Rng) => low + (high - low) * rng();
 
 export interface Voice {
   readonly peak: number;
@@ -313,38 +325,50 @@ function addPop(
   when: number,
   energy: number,
   rng: Rng,
+  echo = true,
 ): void {
   const e = clamp01(energy);
-  const level = popLevel(e);
-  const length = POP_NOISE_MIN + (POP_NOISE_MAX - POP_NOISE_MIN) * e;
+  const level = popLevel(e) * pick(POP_LEVEL_SCALE, rng);
+  const length =
+    (POP_NOISE_MIN + (POP_NOISE_MAX - POP_NOISE_MIN) * e) * pick(POP_LENGTH_SCALE, rng);
+  const from = pick(POP_SWEEP_FROM, rng);
+  const to = pick(POP_SWEEP_TO, rng);
+  const q = pick(POP_Q, rng);
 
   const burst = graph.track(new AudioBufferSourceNode(ctx, { buffer: noise }), when + length);
-  const band = graph.add(
-    new BiquadFilterNode(ctx, { type: 'bandpass', frequency: POP_SWEEP_FROM, Q: POP_Q }),
-  );
-  band.frequency.setValueAtTime(POP_SWEEP_FROM, when);
-  band.frequency.exponentialRampToValueAtTime(POP_SWEEP_TO, when + length);
+  const band = graph.add(new BiquadFilterNode(ctx, { type: 'bandpass', frequency: from, Q: q }));
+  band.frequency.setValueAtTime(from, when);
+  band.frequency.exponentialRampToValueAtTime(to, when + length);
   const burstGain = graph.add(new GainNode(ctx, { gain: 0 }));
+  // A narrower band passes less of the noise, so the boost follows its sharpness.
+  const boost = POP_NOISE_BOOST * Math.sqrt(q / 4);
   burstGain.gain.setValueAtTime(0, when);
-  burstGain.gain.linearRampToValueAtTime(level * POP_NOISE_BOOST, when + POP_ATTACK);
+  burstGain.gain.linearRampToValueAtTime(level * boost, when + POP_ATTACK);
   burstGain.gain.exponentialRampToValueAtTime(SILENT, when + length);
   burstGain.gain.setValueAtTime(0, when + length);
   burst.connect(band).connect(burstGain).connect(graph.panner);
   burst.start(when, rng() * Math.max(0, noise.duration - length), length);
 
-  const thumpEnd = when + POP_THUMP_DECAY;
-  const thump = graph.track(
-    new OscillatorNode(ctx, { type: 'sine', frequency: POP_THUMP_HZ }),
-    thumpEnd,
-  );
-  const thumpGain = graph.add(new GainNode(ctx, { gain: 0 }));
-  thumpGain.gain.setValueAtTime(0, when);
-  thumpGain.gain.linearRampToValueAtTime(level * POP_THUMP_MIX, when + POP_THUMP_ATTACK);
-  thumpGain.gain.exponentialRampToValueAtTime(SILENT, thumpEnd);
-  thumpGain.gain.setValueAtTime(0, thumpEnd);
-  thump.connect(thumpGain).connect(graph.panner);
-  thump.start(when);
-  thump.stop(thumpEnd);
+  if (rng() < POP_THUMP_CHANCE) {
+    const thumpEnd = when + pick(POP_THUMP_DECAY, rng);
+    const thump = graph.track(
+      new OscillatorNode(ctx, { type: 'sine', frequency: pick(POP_THUMP_HZ, rng) }),
+      thumpEnd,
+    );
+    const thumpGain = graph.add(new GainNode(ctx, { gain: 0 }));
+    thumpGain.gain.setValueAtTime(0, when);
+    thumpGain.gain.linearRampToValueAtTime(level * POP_THUMP_MIX, when + POP_THUMP_ATTACK);
+    thumpGain.gain.exponentialRampToValueAtTime(SILENT, thumpEnd);
+    thumpGain.gain.setValueAtTime(0, thumpEnd);
+    thump.connect(thumpGain).connect(graph.panner);
+    thump.start(when);
+    thump.stop(thumpEnd);
+  }
+
+  if (echo && rng() < POP_ECHO_CHANCE) {
+    const later = when + pick(POP_ECHO_DELAY, rng);
+    addPop(ctx, graph, noise, later, e * pick(POP_ECHO_LEVEL, rng), rng, false);
+  }
 }
 
 export function playPop(
@@ -360,12 +384,12 @@ export function playPop(
 export function playShowerTail(
   ctx: BaseAudioContext,
   destination: AudioNode,
-  options: VoiceOptions,
+  options: VoiceOptions & { pop?: boolean },
 ): Voice {
   const { noise, when, pan, rng } = options;
   const energy = clamp01(options.energy);
   const graph = new Graph(ctx, destination, pan);
-  addPop(ctx, graph, noise, when, energy, rng);
+  if (options.pop ?? true) addPop(ctx, graph, noise, when, energy, rng);
 
   const count = Math.round(TAIL_MIN + (TAIL_MAX - TAIL_MIN) * energy);
   const gaps: number[] = [];

@@ -199,6 +199,7 @@ class MagicLayer implements Layer {
           kind: draft.kind,
           at: { ...fault.at },
           energy: draft.energy,
+          intensity: fault.process.level,
         };
         if (draft.kind === 'arc' && fault.to) {
           discharge.to = { ...fault.to };

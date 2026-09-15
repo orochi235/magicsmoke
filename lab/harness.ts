@@ -148,11 +148,41 @@ function renderFlashStack(): { supported: boolean; saturated: number } {
   return { supported: true, saturated };
 }
 
+/**
+ * Eight pops from eight seeds at one energy: each one's audible length, and its zero-crossing rate
+ * while audible as a rough measure of how bright it sounds.
+ */
+async function renderPopSpread(): Promise<{ lengths: number[]; brightness: number[] }> {
+  const lengths: number[] = [];
+  const brightness: number[] = [];
+  for (let seed = 1; seed <= 8; seed++) {
+    const ctx = new OfflineAudioContext(1, RATE * 0.4, RATE);
+    const rng = mulberry32(seed);
+    const noise = noiseBuffer(ctx, rng);
+    playPop(ctx, ctx.destination, { noise, when: 0.01, energy: 0.8, pan: 0, rng });
+    const data = (await ctx.startRendering()).getChannelData(0);
+    let last = 0;
+    let crossings = 0;
+    let audible = 0;
+    for (let i = 1; i < data.length; i++) {
+      const v = data[i] ?? 0;
+      if (Math.abs(v) <= 1e-3) continue;
+      last = i / RATE;
+      audible++;
+      if (v >= 0 !== (data[i - 1] ?? 0) >= 0) crossings++;
+    }
+    lengths.push(last);
+    brightness.push(audible ? crossings / audible : 0);
+  }
+  return { lengths, brightness };
+}
+
 const harness = {
   renderVoice,
   renderBurst,
   renderFault,
   renderFlashStack,
+  renderPopSpread,
   /** Fires a discharge at the page's engine and reports whether audio has unlocked. */
   engineUnlocked(): boolean {
     engine.discharge({ kind: 'burst', at: { x: 0, y: 0, z: 0 }, energy: 1 }, 0);

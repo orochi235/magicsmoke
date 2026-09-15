@@ -18,7 +18,7 @@ describe('SparkEmitters', () => {
     expect(emitters.live).toBe(false);
     emitters.fire('burst', origin, 1);
     emitters.update(1 / 60);
-    expect(emitters.particles).toBe(40);
+    expect(emitters.particles).toBe(12);
     advance((dt) => emitters.update(dt), 2);
     expect(emitters.live).toBe(false);
   });
@@ -45,7 +45,7 @@ describe('SparkEmitters', () => {
     new Scene().add(emitters.object);
     emitters.fire('shower', origin, 0);
     emitters.update(1 / 60);
-    expect(emitters.particles).toBe(40);
+    expect(emitters.particles).toBe(60);
   });
 });
 
@@ -106,13 +106,15 @@ describe('Flashes glow', () => {
     const flashes = new Flashes({ scale: 1, lights: false });
     flashes.fire(origin, 0.2, SPARK_TINT);
     const [glow] = visibleGlows(flashes);
-    expect((glow?.material as import('three').SpriteMaterial).opacity).toBeLessThan(0.05);
+    if (!glow) throw new Error('expected a lit glow');
+    expect((glow.material as import('three').SpriteMaterial).opacity).toBeLessThan(0.05);
   });
 
   it('keeps a full-energy glow well short of white', () => {
     const flashes = new Flashes({ scale: 1, lights: false });
     flashes.fire(origin, 1, SPARK_TINT);
     const [glow] = visibleGlows(flashes);
-    expect((glow?.material as import('three').SpriteMaterial).opacity).toBeLessThanOrEqual(0.6);
+    if (!glow) throw new Error('expected a lit glow');
+    expect((glow.material as import('three').SpriteMaterial).opacity).toBeLessThanOrEqual(0.6);
   });
 });
