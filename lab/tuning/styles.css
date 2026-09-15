@@ -1,0 +1,70 @@
+.tuning-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--wzl-space-md);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 760px) {
+  .tuning-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tuning-stage {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 24px;
+  min-height: 320px;
+  border-radius: 12px;
+  background: #0c0c10;
+  color: #ddd;
+}
+
+.tuning-prompt {
+  margin: 0;
+  color: #888;
+}
+
+.tuning-sign {
+  font:
+    700 64px / 1 "Helvetica Neue",
+    Arial,
+    sans-serif;
+  letter-spacing: 0.05em;
+  color: #ff4fb3;
+  text-shadow:
+    0 0 6px #ff4fb3,
+    0 0 24px #ff2a9a;
+  padding: 24px 32px;
+  border: 1px dashed #333;
+  border-radius: 12px;
+  user-select: none;
+}
+
+.tuning-readout {
+  margin: 0;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.tuning-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wzl-space-md);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tuning-shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wzl-space-xs);
+}
+
+.tuning-notice {
+  color: var(--wzl-fg-muted);
+  font-size: var(--wzl-font-size-sm);
+}
