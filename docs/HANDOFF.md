@@ -19,9 +19,15 @@ Written 2026-09-15. Check it against `git log` before trusting it.
   fades it to zero; the `blow` tuning group sets it, and the tuning lab has a blow button. The
   masthead passes klieg its own flare (`overloadFlare` in `portfolio/src/lib/mastheadPower.ts`) and
   calls `blow` on `'flaring'` with the same `OVERLOAD` timing.
-- **Not yet seen in a browser.** Tests and builds pass in both repos, but the Playwright MCP was down
-  this session, so the shudder (24 px), the volley (3 showers) and the surge (4×) are unwatched
-  defaults. Hold the masthead hover at full for 3 s to see one, and tune in the lab.
+- **magicsmoke 0.3.0 adds `layer.whine`**, a high ballast whine (2.4 kHz, fading over 0.8 s) that
+  the masthead and the magicsmoke tile play while the sign strikes back on after a short. The re-arm
+  itself is `strike(REARM)`: 700 ms and 7 blinks against klieg's 1.2 s and 4.
+- **The masthead dims the tubes around a resting cursor** (`MASTHEAD_HUSH` in `mastheadLook.ts`):
+  gain falls with klieg's `near()` (1.2 em) times the hover squared, to 0.15 under a held cursor, and
+  lifts while the tube flares. Its jolt is 3 px and its overload shudder 10 px (`MASTHEAD_SHAKE`).
+- **None of the overload, hush, re-arm or whine has been seen or heard in a browser.** Tests and
+  builds pass, but the Playwright MCP was down this session. Every number above is a first guess to
+  tune by eye and ear; the magicsmoke tuning lab has blow and whine controls.
 
 ## Decisions made in conversation
 
@@ -30,7 +36,11 @@ Written 2026-09-15. Check it against `git log` before trusting it.
   sparks, sound and shudder. The flare builds for 1 s to 3× glow and collapses over 300 ms, and the
   shudder and shower volley peak with it. No page flash, for photosensitivity. Under reduced motion
   klieg skips the flare, so the masthead never blows.
-- The masthead shakes only past 90% intensity (`jolt: { from: 0.9 }`).
+- The masthead shakes only past 90% intensity (`jolt: { from: 0.9 }`), and the user asked for less
+  shaking than magicsmoke's defaults.
+- The cursor suppresses the glow near it, more strongly as intensity rises.
+- After a short the sign re-arms faster and more flickery than klieg's default strike, with a
+  high-pitched hum that fades out once the sign is back on.
 - Moving the pointer drains intensity (`dwell` `drain`, 200 px); it models a localized disruption.
 - Pops keep their own clock: louder with intensity, never more frequent.
 - Sparks stay sparse: a few big ones or an occasional shower, never constant.
