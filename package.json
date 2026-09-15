@@ -10,6 +10,12 @@
     "web-audio",
     "effects"
   ],
+  "homepage": "https://github.com/orochi235/magicsmoke#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orochi235/magicsmoke.git"
+  },
+  "bugs": "https://github.com/orochi235/magicsmoke/issues",
   "license": "MIT",
   "author": "orochi235",
   "type": "module",
