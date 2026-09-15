@@ -1,6 +1,6 @@
 import { OrthographicCamera, Scene, WebGLRenderer } from 'three';
-import { DEFAULT_TUNING, type Tuning } from './fault/tuning.js';
 import { createLayer, type Fault, type Layer, type LayerOptions } from './layer.js';
+import { resolveTuning, type Tuning } from './tuning.js';
 import type { Point, Vec3 } from './types.js';
 
 export interface OverlayOptions extends Omit<LayerOptions, 'scale' | 'floor' | 'pan'> {
@@ -27,7 +27,7 @@ export interface Overlay {
   /** False where WebGL is unavailable; every call is then a no-op. */
   readonly supported: boolean;
   readonly live: boolean;
-  /** The fault process's constants, read every step, so writes take effect at once. */
+  /** Every effect's tuning, read as it is used, so writes take effect at once. */
   readonly tuning: Tuning;
   volume: number;
   muted: boolean;
@@ -104,7 +104,7 @@ class InertFault implements OverlayFault {
 class Unsupported implements Overlay {
   readonly supported = false;
   readonly live = false;
-  readonly tuning: Tuning = { ...DEFAULT_TUNING };
+  readonly tuning: Tuning = resolveTuning();
   volume = 0.8;
   muted = false;
   sputter(): void {}

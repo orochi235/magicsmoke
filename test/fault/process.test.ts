@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Draft, FaultProcess } from '../../src/fault/process.js';
-import { DEFAULT_TUNING as T } from '../../src/fault/tuning.js';
+import { DEFAULT_FAULT_TUNING as T } from '../../src/fault/tuning.js';
 import { mulberry32 } from '../../src/rng.js';
 
 function run(k: number, seconds: number, dt = 1 / 60, seed = 42): Draft[] {
@@ -56,13 +56,6 @@ describe('FaultProcess', () => {
     expect(process.level).toBeCloseTo(1 - Math.exp(-1), 2);
     for (let i = 0; i < 40; i++) process.step(0.005);
     expect(process.level).toBeCloseTo(1 - Math.exp(-3), 2);
-  });
-
-  it('fizzes in proportion to intensity', () => {
-    const process = new FaultProcess(mulberry32(1));
-    process.target = 0.5;
-    for (let i = 0; i < 60; i++) process.step(0.05);
-    expect(process.fizzRate).toBeCloseTo(T.fizzPerSecond * 0.5, 1);
   });
 
   it('spaces showers at least the cooldown apart', () => {

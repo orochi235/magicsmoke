@@ -11,13 +11,14 @@ export class Jolter {
     this.element = element;
   }
 
-  kick(energy: number, rng: Rng): void {
+  /** `amplitude` is CSS pixels at full energy. */
+  kick(energy: number, rng: Rng, amplitude = AMPLITUDE_PX): void {
     if (typeof this.element.animate !== 'function') return;
     const keyframes: Keyframe[] = [];
     for (let i = 0; i < STEPS; i++) {
-      const amplitude = AMPLITUDE_PX * energy * (1 - i / STEPS);
+      const reach = amplitude * energy * (1 - i / STEPS);
       const angle = rng() * Math.PI * 2;
-      const radius = amplitude * (0.5 + 0.5 * rng());
+      const radius = reach * (0.5 + 0.5 * rng());
       const x = (Math.cos(angle) * radius).toFixed(2);
       const y = (Math.sin(angle) * radius).toFixed(2);
       keyframes.push({ translate: `${x}px ${y}px` });

@@ -116,7 +116,7 @@ spark, its pop, its flash and its jolt on the same frame.
 
 ## How a fault behaves
 
-All constants live in `src/fault/tuning.ts`.
+These constants are `tuning.fault`; see Tuning.
 
 **Timing** is a self-exciting random process. The base rate is `r(k) = 0.3 + 2.2·k²` per second.
 Each discharge adds 3.3/s to the rate, decaying with τ = 150 ms: a branching ratio of 0.5, so the
@@ -170,7 +170,7 @@ for photosensitivity.
 ## Page effects
 
 **Jolt** plays a Web Animations keyframe track on the element's `translate` property with
-`composite: 'add'`: eight damped random offsets over 180 ms, amplitude 6px times the strength. A fault's strength is its intensity past `tuning.joltFrom`
+`composite: 'add'`: eight damped random offsets over 180 ms, amplitude 6px times the strength. A fault's strength is its intensity past `tuning.jolt.from`
 (default 0), ramping from zero there to full at 1; a one-shot's is its energy. Additive
 composition stacks overlapping jolts and leaves the element's own `transform` and `translate`
 alone, and nothing writes inline style. `dispose` cancels the animations.
@@ -215,6 +215,22 @@ not more of them. A shower always pops.
 quietest active voice is stopped for it.
 
 **Hidden tab.** The context suspends on `visibilitychange` to hidden and resumes on visible.
+
+## Tuning
+
+`tuning` is one object grouped by effect — `fault`, `sparks`, `fizz`, `arcs`, `glow`, `lights`,
+`crackle`, `pops`, `hum`, `jolt`, `haptics`, `pageFlash` — read as each effect is used, so writes take
+effect at once. `createLayer({ tuning })` lays overrides over `DEFAULT_TUNING` group by group, as
+`resolveTuning` does.
+
+Every group but `fault` has a `from`: the fault intensity where that effect starts. Below it the
+effect is off; above it, whatever scales with intensity — jolt strength, pop loudness, fizz rate, hum
+level — ramps from zero at `from` to full at 1. One-shots carry no intensity, so thresholds never
+hold them back.
+
+`TUNING_SCHEMA` describes every value as plain data — label, range, step, hint — so any lab can build
+its controls from it without depending on magicsmoke's own. A test holds the schema and the defaults
+to the same keys and keeps every default inside its range.
 
 ## What klieg needs to add
 

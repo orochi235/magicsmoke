@@ -64,7 +64,7 @@ sounding, so a host can stop rendering.
 | `floor` | viewport bottom (overlay), none (layer) | Where showers and sputter bounce |
 | `seed` | random | Makes the sequence of discharges repeatable |
 | `reducedMotion` | `'respect'` | `'ignore'` keeps jolt, lights and page flash under reduced motion |
-| `tuning` | `DEFAULT_TUNING` | Discharge rate, burstiness, easing and fizz; editable live |
+| `tuning` | `DEFAULT_TUNING` | Every effect's settings and its `from` threshold, editable live; `TUNING_SCHEMA` describes each one for a lab |
 | `onDischarge` | none | Called for every discharge, to drive an effect of your own |
 
 ## What browsers allow

@@ -1,7 +1,7 @@
 import { Group, type Object3D } from 'three';
 import { AudioEngine, type AudioOptions } from './audio/engine.js';
 import { FaultProcess } from './fault/process.js';
-import { DEFAULT_TUNING, type Tuning } from './fault/tuning.js';
+import { above, opens, strength } from './gates.js';
 import { Haptics } from './page/haptics.js';
 import { Jolter } from './page/jolt.js';
 import { prefersReducedMotion } from './page/motion.js';
@@ -10,6 +10,7 @@ import { fork, mulberry32, type Rng } from './rng.js';
 import { Arcs } from './sparks/arcs.js';
 import { SparkEmitters } from './sparks/emitters.js';
 import { ARC_TINT, Flashes, SPARK_TINT } from './sparks/flashes.js';
+import { resolveTuning, type Tuning, type TuningOverrides } from './tuning.js';
 import type { Discharge, Vec3 } from './types.js';
 
 export interface LayerOptions {
@@ -28,7 +29,8 @@ export interface LayerOptions {
   /** A full-page white pulse on the largest discharges. Off by default, for photosensitivity. */
   pageFlash?: boolean;
   reducedMotion?: 'respect' | 'ignore';
-  tuning?: Partial<Tuning>;
+  /** Starting values for any effect's tuning; the rest are defaults. */
+  tuning?: TuningOverrides;
   /** Called for every discharge, one-shots included, for a caller adding a channel of its own. */
   onDischarge?: (discharge: Discharge) => void;
 }
@@ -54,7 +56,7 @@ export interface Layer {
   readonly object: Object3D;
   /** Whether anything is still moving, lit, sounding or faulting. */
   readonly live: boolean;
-  /** The fault process's constants, read every step, so writes take effect at once. */
+  /** Every effect's tuning, read as it is used, so writes take effect at once. */
   readonly tuning: Tuning;
   volume: number;
   muted: boolean;
@@ -72,12 +74,9 @@ export interface Layer {
 
 const MAX_STEP = 0.05;
 const SILENT = 1e-3;
-const PAGE_FLASH_FROM = 0.8;
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0));
 const arcDuration = (energy: number) => 0.05 + 0.17 * energy;
-/** 0 at `from`, 1 at full intensity. */
-const above = (k: number, from: number) => (from >= 1 ? 0 : clamp01((k - from) / (1 - from)));
 
 class FaultHandle implements Fault {
   readonly process: FaultProcess;
@@ -142,13 +141,15 @@ class MagicLayer implements Layer {
     const scale = options.scale ?? 1;
     const reduced = options.reducedMotion !== 'ignore' && prefersReducedMotion();
     this.countScale = reduced ? 0.5 : 1;
-    this.tuning = { ...DEFAULT_TUNING, ...options.tuning };
+    this.tuning = resolveTuning(options.tuning);
     this.emitters = new SparkEmitters({ scale, floor: options.floor ?? null });
     this.arcs = new Arcs(fork(this.rng), scale);
     this.flashes = new Flashes({ scale, lights: !reduced });
     this.object.add(this.emitters.object, this.arcs.object, this.flashes.object);
     const sound = options.sound ?? false;
-    this.audio = sound ? new AudioEngine(sound === true ? {} : sound, fork(this.rng)) : null;
+    this.audio = sound
+      ? new AudioEngine(sound === true ? {} : sound, fork(this.rng), this.tuning)
+      : null;
     this.jolter = options.jolt && !reduced ? new Jolter(options.jolt) : null;
     this.haptics = options.haptics ? new Haptics() : null;
     this.pageFlash = options.pageFlash && !reduced ? new PageFlash() : null;
@@ -194,6 +195,7 @@ class MagicLayer implements Layer {
   update(dt: number): void {
     if (this.disposed) return;
     const step = Math.min(Math.max(dt, 0), MAX_STEP);
+    const t = this.tuning;
     let hum = 0;
     for (const fault of this.faults) {
       for (const draft of fault.process.step(step)) {
@@ -209,17 +211,19 @@ class MagicLayer implements Layer {
         }
         this.discharge(discharge);
       }
-      fault.fizzCarry += fault.process.fizzRate * step * this.countScale;
+      const k = fault.process.level;
+      fault.fizzCarry += above(k, t.fizz.from) * t.fizz.perSecond * step * this.countScale;
       const fizz = Math.floor(fault.fizzCarry);
       if (fizz > 0) {
         fault.fizzCarry -= fizz;
         this.emitters.spawn('fizz', fault.at, fizz);
-        this.audio?.crackle(fizz, this.pan(fault.at));
+        if (k > t.crackle.from) this.audio?.crackle(fizz, this.pan(fault.at));
       }
-      hum = Math.max(hum, fault.process.level);
+      hum = Math.max(hum, above(k, t.hum.from));
       if (fault.stopped && fault.process.level < SILENT) this.faults.delete(fault);
     }
     this.audio?.setHum(hum);
+    this.emitters.retune(t.sparks);
     this.emitters.update(step);
     this.arcs.update(step);
     this.flashes.update(step);
@@ -243,7 +247,7 @@ class MagicLayer implements Layer {
   }
 
   fault(spec: FaultSpec): Fault {
-    const handle = new FaultHandle(new FaultProcess(fork(this.rng), this.tuning), spec);
+    const handle = new FaultHandle(new FaultProcess(fork(this.rng), this.tuning.fault), spec);
     if (!this.disposed) this.faults.add(handle);
     return handle;
   }
@@ -266,22 +270,40 @@ class MagicLayer implements Layer {
   }
 
   private discharge(d: Discharge): void {
+    const t = this.tuning;
+    const sparks = opens(d, t.sparks.from);
+    const count = this.countScale * t.sparks.count;
+    const peaks = {
+      glow: opens(d, t.glow.from) ? t.glow.peak : null,
+      light: opens(d, t.lights.from) ? t.lights.peak : null,
+    };
     if (d.kind === 'arc' && d.to) {
-      this.arcs.strike(d.at, d.to, d.energy, d.duration ?? arcDuration(d.energy));
+      if (opens(d, t.arcs.from)) {
+        this.arcs.strike(d.at, d.to, d.energy, d.duration ?? arcDuration(d.energy));
+      }
       const mid = { x: (d.at.x + d.to.x) / 2, y: (d.at.y + d.to.y) / 2, z: (d.at.z + d.to.z) / 2 };
-      this.flashes.fire(mid, d.energy, ARC_TINT);
-      this.emitters.fire('sputter', d.at, d.energy / 2, this.countScale);
-      this.emitters.fire('sputter', d.to, d.energy / 2, this.countScale);
+      this.flashes.fire(mid, d.energy, ARC_TINT, peaks);
+      if (sparks) {
+        this.emitters.fire('sputter', d.at, d.energy / 2, count);
+        this.emitters.fire('sputter', d.to, d.energy / 2, count);
+      }
     } else if (d.kind !== 'arc') {
-      this.emitters.fire(d.kind, d.at, d.energy, this.countScale);
-      this.flashes.fire(d.at, d.energy, SPARK_TINT);
+      if (sparks) this.emitters.fire(d.kind, d.at, d.energy, count);
+      this.flashes.fire(d.at, d.energy, SPARK_TINT, peaks);
     }
-    this.audio?.discharge(d, this.pan(d.at));
-    // A fault's jolt follows its intensity past the threshold; a one-shot's follows its energy.
-    const jolt = d.intensity === undefined ? d.energy : above(d.intensity, this.tuning.joltFrom);
-    if (jolt > 0) this.jolter?.kick(jolt, this.pageRng);
-    this.haptics?.pulse(d.energy);
-    if (d.energy > PAGE_FLASH_FROM) this.pageFlash?.pulse(d.energy);
+    this.audio?.discharge(d, this.pan(d.at), {
+      crackle: opens(d, t.crackle.from),
+      buzz: opens(d, t.arcs.from),
+      pop: opens(d, t.pops.from) ? strength(d, t.pops.from) : null,
+    });
+    if (opens(d, t.jolt.from)) {
+      const jolt = strength(d, t.jolt.from);
+      if (jolt > 0) this.jolter?.kick(jolt, this.pageRng, t.jolt.amplitude);
+    }
+    if (opens(d, t.haptics.from)) this.haptics?.pulse(d.energy);
+    if (opens(d, t.pageFlash.from) && d.energy > t.pageFlash.energy) {
+      this.pageFlash?.pulse(d.energy);
+    }
     this.onDischarge?.(d);
   }
 }

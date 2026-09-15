@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { drawEnergy, kindFor } from '../../src/fault/energy.js';
-import { DEFAULT_TUNING as T } from '../../src/fault/tuning.js';
+import { DEFAULT_FAULT_TUNING as T } from '../../src/fault/tuning.js';
 import { mulberry32 } from '../../src/rng.js';
 
 function meanEnergy(k: number): number {

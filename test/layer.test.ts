@@ -71,13 +71,13 @@ describe('createLayer', () => {
   it('jolts only past the jolt threshold, harder toward full intensity', () => {
     const animate = vi.fn(() => ({ cancel() {}, finished: Promise.resolve(), onfinish: null }));
     const element = { animate } as unknown as Element;
-    const calm = setup({ jolt: element, tuning: { joltFrom: 0.9 } });
+    const calm = setup({ jolt: element, tuning: { jolt: { from: 0.9 } } });
     calm.layer.fault({ at: origin, intensity: 0.85 });
     calm.advance(30);
     expect(calm.seen.length).toBeGreaterThan(0);
     expect(animate).not.toHaveBeenCalled();
 
-    const strained = setup({ jolt: element, tuning: { joltFrom: 0.9 } });
+    const strained = setup({ jolt: element, tuning: { jolt: { from: 0.9 } } });
     strained.layer.fault({ at: origin, intensity: 1 });
     strained.advance(10);
     expect(animate).toHaveBeenCalled();

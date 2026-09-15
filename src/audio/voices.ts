@@ -91,6 +91,8 @@ export interface VoiceOptions {
   energy: number;
   pan: number;
   rng: Rng;
+  /** Multiplier on the voice's level. */
+  gain?: number;
 }
 
 function clamp01(value: number): number {
@@ -309,6 +311,7 @@ export function playCrackle(
   }
   const buffer = bakeClicks(ctx, noise, rng, clicks, spread + CLICK_MAX, false);
   const graph = new Graph(ctx, destination, pan);
+  graph.out.gain.value = options.gain ?? 1;
   const source = graph.track(new AudioBufferSourceNode(ctx, { buffer }), when + buffer.duration);
   const highpass = graph.add(
     new BiquadFilterNode(ctx, { type: 'highpass', frequency: CRACKLE_CUTOFF }),
@@ -377,6 +380,7 @@ export function playPop(
   options: VoiceOptions,
 ): Voice {
   const graph = new Graph(ctx, destination, options.pan);
+  graph.out.gain.value = options.gain ?? 1;
   addPop(ctx, graph, options.noise, options.when, options.energy, options.rng);
   return graph.voice(popLevel(options.energy));
 }
@@ -389,6 +393,7 @@ export function playShowerTail(
   const { noise, when, pan, rng } = options;
   const energy = clamp01(options.energy);
   const graph = new Graph(ctx, destination, pan);
+  graph.out.gain.value = options.gain ?? 1;
   if (options.pop ?? true) addPop(ctx, graph, noise, when, energy, rng);
 
   const count = Math.round(TAIL_MIN + (TAIL_MAX - TAIL_MIN) * energy);
@@ -445,6 +450,7 @@ export function playArcBuzz(
   const stopAt = when + duration;
   const level = arcLevel(energy);
   const graph = new Graph(ctx, destination, pan);
+  graph.out.gain.value = options.gain ?? 1;
 
   const gate = graph.add(new GainNode(ctx, { gain: 0 }));
   gate.gain.setValueAtTime(0, when);

@@ -20,6 +20,14 @@ const MERGE = 0.5;
 /** Point light intensity at energy 1 and scale 1; a light 100 units away needs this order to show. */
 const LIGHT_PEAK = 20000;
 
+/** What a flash lights: the glow's peak opacity and the light's peak intensity, or `null` for none. */
+export interface FlashPeaks {
+  glow: number | null;
+  light: number | null;
+}
+
+const DEFAULT_PEAKS: FlashPeaks = { glow: GLOW_PEAK, light: LIGHT_PEAK };
+
 const spot = new Vector3();
 
 export const SPARK_TINT = 0xffbe6e;
@@ -85,35 +93,37 @@ export class Flashes {
     return this.glows.some((g) => g.age < LIFE) || this.lamps.some((l) => l.age < LIFE);
   }
 
-  fire(at: Vec3, energy: number, tint: number): void {
-    const peak = GLOW_PEAK * energy * energy;
-    const size = (24 + 40 * energy) * this.scale;
-    // Additive glows landing on one spot within their life sum past white into a flat disc, so a
-    // flash near a lit glow relights it at the brighter of the two rather than stacking.
-    spot.set(at.x, at.y, at.z);
-    const near = this.glows.find(
-      (g) => g.age < LIFE && g.sprite.position.distanceTo(spot) < MERGE * Math.max(g.size, size),
-    );
-    if (near) {
-      near.peak = Math.max(near.peak * (1 - near.age / LIFE), peak);
-      near.size = Math.max(near.size, size);
-      near.age = 0;
-      near.material.color.set(tint);
-    } else {
-      const glow = this.glows[this.nextGlow] as Glow;
-      this.nextGlow = (this.nextGlow + 1) % GLOWS;
-      glow.age = 0;
-      glow.peak = peak;
-      glow.size = size;
-      glow.material.color.set(tint);
-      glow.sprite.position.set(at.x, at.y, at.z);
+  fire(at: Vec3, energy: number, tint: number, peaks: FlashPeaks = DEFAULT_PEAKS): void {
+    if (peaks.glow !== null) {
+      const peak = peaks.glow * energy * energy;
+      const size = (24 + 40 * energy) * this.scale;
+      // Additive glows landing on one spot within their life sum past white into a flat disc, so a
+      // flash near a lit glow relights it at the brighter of the two rather than stacking.
+      spot.set(at.x, at.y, at.z);
+      const near = this.glows.find(
+        (g) => g.age < LIFE && g.sprite.position.distanceTo(spot) < MERGE * Math.max(g.size, size),
+      );
+      if (near) {
+        near.peak = Math.max(near.peak * (1 - near.age / LIFE), peak);
+        near.size = Math.max(near.size, size);
+        near.age = 0;
+        near.material.color.set(tint);
+      } else {
+        const glow = this.glows[this.nextGlow] as Glow;
+        this.nextGlow = (this.nextGlow + 1) % GLOWS;
+        glow.age = 0;
+        glow.peak = peak;
+        glow.size = size;
+        glow.material.color.set(tint);
+        glow.sprite.position.set(at.x, at.y, at.z);
+      }
     }
 
     const lamp = this.lamps[this.nextLamp];
-    if (lamp) {
+    if (lamp && peaks.light !== null) {
       this.nextLamp = (this.nextLamp + 1) % this.lamps.length;
       lamp.age = 0;
-      lamp.peak = LIGHT_PEAK * energy * this.scale * this.scale;
+      lamp.peak = peaks.light * energy * this.scale * this.scale;
       lamp.light.color.set(tint);
       lamp.light.position.set(at.x, at.y, at.z);
     }

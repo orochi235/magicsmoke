@@ -1,7 +1,7 @@
 import type { Rng } from '../rng.js';
 import type { DischargeKind } from '../types.js';
 import { drawEnergy, kindFor } from './energy.js';
-import { DEFAULT_TUNING, type Tuning } from './tuning.js';
+import { DEFAULT_FAULT_TUNING, type FaultTuning } from './tuning.js';
 
 export interface Draft {
   kind: DischargeKind;
@@ -19,14 +19,14 @@ export class FaultProcess {
   target = 0;
   canArc = false;
   private readonly rng: Rng;
-  private readonly tuning: Tuning;
+  private readonly tuning: FaultTuning;
   private eased = 0;
   private excitation = 0;
   private elapsed = 0;
   private ticks = 0;
   private showerReady = 0;
 
-  constructor(rng: Rng, tuning: Tuning = DEFAULT_TUNING) {
+  constructor(rng: Rng, tuning: FaultTuning = DEFAULT_FAULT_TUNING) {
     this.rng = rng;
     this.tuning = tuning;
   }
@@ -37,10 +37,6 @@ export class FaultProcess {
 
   get now(): number {
     return this.ticks * SUBSTEP;
-  }
-
-  get fizzRate(): number {
-    return this.eased < SILENT ? 0 : this.tuning.fizzPerSecond * this.eased;
   }
 
   step(dt: number): Draft[] {

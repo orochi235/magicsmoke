@@ -1,4 +1,5 @@
 import { fork, type Rng } from '../rng.js';
+import { DEFAULT_TUNING, type Tuning } from '../tuning.js';
 import type { Discharge } from '../types.js';
 import { VoiceCap } from './cap.js';
 import { PopGate } from './pop-gate.js';
@@ -33,8 +34,6 @@ const LIMITER: DynamicsCompressorOptions = {
 };
 const SAG_ENERGY = 0.6;
 const ARC_DURATION = 0.12;
-/** A pop at intensity 0 still sounds at this share of full. */
-const POP_FLOOR = 0.2;
 const SPUTTER_MIN = 3;
 const SPUTTER_MAX = 8;
 const SPUTTER_SPREAD = 0.04;
@@ -44,6 +43,16 @@ const FIZZ_ENERGY = 0.35;
 const FIZZ_MAX = 16;
 const RELEASE_SLACK_MS = 50;
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
+
+/** Which sounds a discharge may make, decided by each effect's threshold. */
+export interface AudioGate {
+  crackle: boolean;
+  buzz: boolean;
+  /** Pop strength past its threshold, or `null` while pops are below it. */
+  pop: number | null;
+}
+
+export type AudioTuning = Pick<Tuning, 'crackle' | 'pops' | 'hum'>;
 
 export interface AudioOptions {
   volume?: number;
@@ -64,6 +73,7 @@ export class AudioEngine {
   private readonly mains: 50 | 60;
   private readonly cap = new VoiceCap(MAX_VOICES);
   private readonly pops: PopGate;
+  private readonly tuning: AudioTuning;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -88,9 +98,11 @@ export class AudioEngine {
     settle(document.hidden ? ctx.suspend() : ctx.resume());
   };
 
-  constructor(options: AudioOptions, rng: Rng) {
+  /** `tuning` is read as each sound is made, so a caller can retune it live. */
+  constructor(options: AudioOptions, rng: Rng, tuning: AudioTuning = DEFAULT_TUNING) {
     this.rng = fork(rng);
-    this.pops = new PopGate(this.rng);
+    this.tuning = tuning;
+    this.pops = new PopGate(this.rng, tuning.pops);
     this.level = Number.isFinite(options.volume)
       ? Math.max(0, options.volume ?? 0)
       : DEFAULT_VOLUME;
@@ -130,42 +142,52 @@ export class AudioEngine {
   }
 
   /** Plays the discharge's sound; dropped (not queued) before unlock. pan is -1..1. */
-  discharge(d: Discharge, pan: number): void {
+  discharge(d: Discharge, pan: number, gate?: AudioGate): void {
     const { ctx, master, noise } = this;
     if (!ctx || !master || !noise) return;
     const when = ctx.currentTime + LEAD;
     const energy = clamp01(d.energy);
     const base = { noise, when, pan, rng: this.rng };
+    const { crackle, pops } = this.tuning;
+    const crackles = gate?.crackle ?? true;
+    const buzzes = gate?.buzz ?? true;
+    const popStrength = gate ? gate.pop : clamp01(d.intensity ?? energy);
     // Pops keep their own clock and follow the fault's intensity, so turning a fault up makes them
     // louder rather than more frequent.
-    const pop = this.pops.allow(d.kind, when);
-    const loud = POP_FLOOR + (1 - POP_FLOOR) * clamp01(d.intensity ?? energy);
+    const pop = popStrength !== null && this.pops.allow(d.kind, when);
+    const loud = pops.floor + (1 - pops.floor) * (popStrength ?? 0);
+    const gain = crackle.level;
     switch (d.kind) {
       case 'sputter': {
+        if (!crackles) break;
         const count = Math.round(SPUTTER_MIN + (SPUTTER_MAX - SPUTTER_MIN) * energy);
-        this.play(crackleLevel(energy), () =>
-          playCrackle(ctx, master, { ...base, energy, count, spread: SPUTTER_SPREAD }),
+        this.play(crackleLevel(energy) * gain, () =>
+          playCrackle(ctx, master, { ...base, energy, count, spread: SPUTTER_SPREAD, gain }),
         );
         break;
       }
       case 'burst':
-        if (!pop) {
-          this.play(crackleLevel(energy), () =>
+        if (!pop && crackles) {
+          this.play(crackleLevel(energy) * gain, () =>
             playCrackle(ctx, master, {
               ...base,
               energy,
               count: BURST_CRACKLE,
               spread: SPUTTER_SPREAD,
+              gain,
             }),
           );
         }
         break;
       case 'shower':
-        this.play(showerLevel(energy), () =>
-          playShowerTail(ctx, master, { ...base, energy, pop: false }),
-        );
+        if (crackles) {
+          this.play(showerLevel(energy) * gain, () =>
+            playShowerTail(ctx, master, { ...base, energy, pop: false, gain }),
+          );
+        }
         break;
       case 'arc': {
+        if (!buzzes) break;
         const duration = d.duration ?? ARC_DURATION;
         const mains = this.mains;
         this.play(arcLevel(energy), () =>
@@ -174,7 +196,11 @@ export class AudioEngine {
         break;
       }
     }
-    if (pop) this.play(popLevel(loud), () => playPop(ctx, master, { ...base, energy: loud }));
+    if (pop) {
+      this.play(popLevel(loud) * pops.level, () =>
+        playPop(ctx, master, { ...base, energy: loud, gain: pops.level }),
+      );
+    }
     if (energy > SAG_ENERGY) this.hum?.sag(when);
   }
 
@@ -192,13 +218,14 @@ export class AudioEngine {
       rng: this.rng,
       count: clicks,
       spread: FRAME,
+      gain: this.tuning.crackle.level,
     };
-    this.play(crackleLevel(FIZZ_ENERGY), () => playCrackle(ctx, master, options));
+    this.play(crackleLevel(FIZZ_ENERGY) * options.gain, () => playCrackle(ctx, master, options));
   }
 
   /** 0..1, the loudest live fault's intensity; the hum starts on the first non-zero level. */
   setHum(level: number): void {
-    const value = clamp01(level);
+    const value = clamp01(level) * this.tuning.hum.level;
     this.humLevel = value;
     const { ctx, master } = this;
     if (!ctx || !master) return;

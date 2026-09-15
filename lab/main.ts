@@ -1,4 +1,10 @@
-import { createOverlay, dwell, type Tuning } from '../src/index.js';
+import {
+  createOverlay,
+  dwell,
+  type ParamSpec,
+  TUNING_SCHEMA,
+  type TuningGroup,
+} from '../src/index.js';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -73,27 +79,33 @@ dwell(sign, { rise: 4000, fall: 600 }).onChange(({ value, x, y }) => {
   readout.textContent = `dwell ${value.toFixed(2)}`;
 });
 
-const knobs: [keyof Tuning, number, number, number][] = [
-  ['baseRate', 0, 4, 0.05],
-  ['rateCurve', 0, 40, 0.5],
-  ['exciteBoost', 0, 6, 0.1],
-  ['exciteTau', 0.02, 0.6, 0.01],
-  ['easeTau', 0.01, 1, 0.01],
-  ['fizzPerSecond', 0, 80, 1],
-  ['arcShare', 0, 1, 0.05],
-];
 const tuningSet = $<HTMLFieldSetElement>('tuning');
-for (const [key, min, max, step] of knobs) {
-  const label = document.createElement('label');
-  const out = document.createElement('output');
-  const input = document.createElement('input');
-  Object.assign(input, { type: 'range', min, max, step, value: overlay.tuning[key] });
-  label.append(`${key} `, out, input);
-  tuningSet.append(label);
-  const sync = () => {
-    overlay.tuning[key] = Number(input.value);
-    out.value = Number(input.value).toFixed(2);
-  };
-  input.addEventListener('input', sync);
-  sync();
+const decimals = (step: number) => Math.max(0, -Math.floor(Math.log10(step)));
+for (const group of Object.keys(TUNING_SCHEMA) as TuningGroup[]) {
+  const { label, params } = TUNING_SCHEMA[group];
+  const heading = document.createElement('h2');
+  heading.textContent = label;
+  tuningSet.append(heading);
+  const values = overlay.tuning[group] as unknown as Record<string, number>;
+  for (const [key, spec] of Object.entries(params as Record<string, ParamSpec>)) {
+    const row = document.createElement('label');
+    const out = document.createElement('output');
+    const input = document.createElement('input');
+    Object.assign(input, {
+      type: 'range',
+      min: spec.min,
+      max: spec.max,
+      step: spec.step,
+      value: values[key],
+      title: spec.hint ?? '',
+    });
+    row.append(`${spec.label} `, out, input);
+    tuningSet.append(row);
+    const sync = () => {
+      values[key] = Number(input.value);
+      out.value = Number(input.value).toFixed(decimals(spec.step));
+    };
+    input.addEventListener('input', sync);
+    sync();
+  }
 }

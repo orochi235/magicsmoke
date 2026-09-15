@@ -43,6 +43,12 @@ const BOUNCE = 0.35;
 /** Streak length is `(speed · speedFactor + 1) · size`; this reads well at one unit per pixel. */
 const SPEED_FACTOR = 0.012;
 
+function rescale(generator: unknown, [low, high]: readonly [number, number], k: number): void {
+  const interval = generator as IntervalValue;
+  interval.a = low * k;
+  interval.b = high * k;
+}
+
 function inScene(object: Object3D): boolean {
   let node: Object3D | null = object;
   while (node) {
@@ -95,9 +101,12 @@ export class SparkEmitters {
   private readonly material: MeshBasicMaterial;
   private readonly matrix = new Matrix4();
   private readonly floor: { y: number | null };
+  private readonly scale: number;
+  private applied = { size: 1, speed: 1, life: 1 };
 
   constructor(options: EmitterOptions) {
     this.floor = { y: options.floor };
+    this.scale = options.scale;
     this.texture = dotTexture();
     this.material = new MeshBasicMaterial({
       map: this.texture,
@@ -122,6 +131,19 @@ export class SparkEmitters {
 
   get live(): boolean {
     return this.particles > 0;
+  }
+
+  /** Rescales every kind's size, speed and life for sparks spawned from now on. */
+  retune({ size, speed, life }: { size: number; speed: number; life: number }): void {
+    const was = this.applied;
+    if (was.size === size && was.speed === speed && was.life === life) return;
+    this.applied = { size, speed, life };
+    for (const [kind, system] of this.systems) {
+      const spec = SPARKS[kind];
+      rescale(system.startSize, spec.size, this.scale * size);
+      rescale(system.startSpeed, spec.speed, this.scale * speed);
+      rescale(system.startLife, spec.life, life);
+    }
   }
 
   setFloor(y: number | null): void {

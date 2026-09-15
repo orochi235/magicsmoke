@@ -1,4 +1,4 @@
-export interface Tuning {
+export interface FaultTuning {
   /** A fault at intensity k discharges at `baseRate + rateCurve·k²` per second before excitation. */
   baseRate: number;
   rateCurve: number;
@@ -19,17 +19,13 @@ export interface Tuning {
   arcShare: number;
   /** Seconds after a shower before the fault can throw another; one due sooner is a burst. */
   showerCooldown: number;
-  /** Small sparks a second a fault at intensity 1 fizzes between discharges. */
-  fizzPerSecond: number;
-  /** Fault intensity where the jolt starts; its strength ramps from zero there to full at 1. */
-  joltFrom: number;
 }
 
 /**
  * `exciteBoost · exciteTau` is the branching ratio. At 0.5 the long-run rate is about twice the
  * base rate; at 1 or above the process runs away.
  */
-export const DEFAULT_TUNING: Readonly<Tuning> = {
+export const DEFAULT_FAULT_TUNING: Readonly<FaultTuning> = {
   baseRate: 0.3,
   rateCurve: 2.2,
   exciteBoost: 3.3,
@@ -44,6 +40,4 @@ export const DEFAULT_TUNING: Readonly<Tuning> = {
   arcFrom: 0.45,
   arcShare: 0.5,
   showerCooldown: 2.5,
-  fizzPerSecond: 4,
-  joltFrom: 0,
 };
