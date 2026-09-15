@@ -19,8 +19,10 @@ Written 2026-09-15. Check it against `git log` before trusting it.
   fades it to zero; the `blow` tuning group sets it, and the tuning lab has a blow button. The
   masthead passes klieg its own flare (`overloadFlare` in `portfolio/src/lib/mastheadPower.ts`) and
   calls `blow` on `'flaring'` with the same `OVERLOAD` timing.
-- **magicsmoke 0.3.0 adds `layer.whine`**, a high ballast whine (2.4 kHz, fading over 0.8 s) that
-  the masthead and the magicsmoke tile play while the sign strikes back on after a short. The re-arm
+- **magicsmoke 0.3.0 adds `layer.whine`**, a high ballast whine fading over 0.8 s, which the
+  masthead and the magicsmoke tile play while the sign strikes back on after a short. They tune it
+  to 15 kHz (`REARM_WHINE`), barely perceptible as the user asked; magicsmoke's default is 2.4 kHz,
+  and its lab slider stops at 8 kHz. The re-arm
   itself is `strike(REARM)`: 700 ms and 7 blinks against klieg's 1.2 s and 4.
 - **The masthead dims the tubes around a resting cursor** (`MASTHEAD_HUSH` in `mastheadLook.ts`):
   gain falls with klieg's `near()` (1.2 em) times the hover squared, to 0.15 under a held cursor, and
