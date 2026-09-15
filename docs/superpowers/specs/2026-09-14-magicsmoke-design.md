@@ -68,7 +68,7 @@ caller as `overlay.render(dt)`, for capture and for tests. It reports `supported
 WebGL is unavailable, and every call is then a no-op.
 
 ```ts
-function dwell(element: Element, spec: { rise: number; fall: number }): Dwell;
+function dwell(element: Element, spec: { rise: number; fall: number; drain?: number }): Dwell;
 interface Dwell {
   readonly value: number;       // 0..1
   readonly x: number;           // last client position over the element
@@ -79,7 +79,9 @@ interface Dwell {
 ```
 
 `value` climbs linearly to 1 over `rise` ms while the pointer stays over the element and falls
-over `fall` ms after it leaves. A `pointercancel` — a touch the browser has taken over for
+over `fall` ms after it leaves. Moving costs value: `drain` CSS pixels of travel (default 200)
+cost all of it, so the value measures how long the pointer has stayed in one place — a localized
+disruption — and builds back up once it rests. A `pointercancel` — a touch the browser has taken over for
 scrolling — counts as leaving. The masthead needs nothing more:
 
 ```ts

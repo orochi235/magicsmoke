@@ -52,6 +52,54 @@ describe('dwell', () => {
     expect(d.value).toBe(0);
   });
 
+  const move = (x: number, y: number) =>
+    element.dispatchEvent(new MouseEvent('pointermove', { clientX: x, clientY: y }));
+
+  it('drains by the distance the pointer travels', () => {
+    const d = dwell(element, { rise: 1500, fall: 600, drain: 200 });
+    element.dispatchEvent(new MouseEvent('pointerenter', { clientX: 0, clientY: 0 }));
+    vi.advanceTimersByTime(2000);
+    expect(d.value).toBe(1);
+    move(100, 0);
+    expect(d.value).toBeCloseTo(0.5, 2);
+  });
+
+  it('builds back up once the pointer rests again', () => {
+    const d = dwell(element, { rise: 1500, fall: 600, drain: 200 });
+    element.dispatchEvent(new MouseEvent('pointerenter', { clientX: 0, clientY: 0 }));
+    vi.advanceTimersByTime(2000);
+    move(200, 0);
+    expect(d.value).toBe(0);
+    vi.advanceTimersByTime(1600);
+    expect(d.value).toBe(1);
+  });
+
+  it('barely drains for a hand resting unsteadily', () => {
+    const d = dwell(element, { rise: 1500, fall: 600, drain: 200 });
+    element.dispatchEvent(new MouseEvent('pointerenter', { clientX: 0, clientY: 0 }));
+    vi.advanceTimersByTime(2000);
+    for (let i = 1; i <= 10; i++) move(i % 2 ? 2 : 0, 0);
+    expect(d.value).toBeGreaterThan(0.85);
+  });
+
+  it('lets movement go free with an infinite drain', () => {
+    const d = dwell(element, { rise: 1500, fall: 600, drain: Number.POSITIVE_INFINITY });
+    element.dispatchEvent(new MouseEvent('pointerenter', { clientX: 0, clientY: 0 }));
+    vi.advanceTimersByTime(2000);
+    move(5000, 0);
+    expect(d.value).toBe(1);
+  });
+
+  it('does not charge a return for the trip back', () => {
+    const d = dwell(element, { rise: 1500, fall: 600, drain: 200 });
+    element.dispatchEvent(new MouseEvent('pointerenter', { clientX: 0, clientY: 0 }));
+    element.dispatchEvent(new Event('pointerleave'));
+    element.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(2000);
+    move(900, 0);
+    expect(d.value).toBe(1);
+  });
+
   it('stops requesting frames once settled', () => {
     dwell(element, { rise: 100, fall: 100 });
     element.dispatchEvent(new Event('pointerenter'));

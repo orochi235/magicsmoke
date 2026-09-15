@@ -20,7 +20,7 @@ import { createOverlay, dwell } from 'magicsmoke';
 const fx = createOverlay({ sound: true, jolt: sign });
 const fault = fx.fault({ at: { x: 0, y: 0 } });
 
-// The longer the pointer rests on the sign, the harder it fails.
+// The longer the pointer rests in one spot on the sign, the harder it fails; moving drains it.
 dwell(sign, { rise: 4000, fall: 600 }).onChange(({ value, x, y }) => {
   fault.intensity = value;
   fault.at = { x, y };

@@ -1,7 +1,15 @@
 export interface DwellSpec {
   rise: number;
   fall: number;
+  /**
+   * CSS pixels of pointer travel that cost the whole value, so the value measures how long the
+   * pointer has stayed in one place rather than over the element at all. Default 200; `Infinity`
+   * leaves movement free.
+   */
+  drain?: number;
 }
+
+const DEFAULT_DRAIN = 200;
 
 export interface Dwell {
   readonly value: number;
@@ -21,6 +29,9 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
   let rate = 0;
   let last = 0;
   let frame: number | null = null;
+  // Whether x and y were seen during this visit, so a return is not charged for the trip back.
+  let anchored = false;
+  const drain = spec.drain ?? DEFAULT_DRAIN;
 
   const state: Dwell = {
     get value() {
@@ -85,15 +96,28 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
 
   function enter(event: Event) {
     if (track(event)) notify();
+    anchored = event instanceof MouseEvent;
     head(1);
   }
 
   function leave() {
+    anchored = false;
     head(0);
   }
 
   function move(event: Event) {
-    if (track(event)) notify();
+    const fromX = x;
+    const fromY = y;
+    const wasAnchored = anchored;
+    if (!track(event)) return;
+    anchored = true;
+    if (wasAnchored && Number.isFinite(drain) && drain > 0) {
+      if (frame !== null) advance(performance.now());
+      last = performance.now();
+      value = Math.max(0, value - Math.hypot(x - fromX, y - fromY) / drain);
+      if (value !== target && frame === null) frame = requestAnimationFrame(tick);
+    }
+    notify();
   }
 
   element.addEventListener('pointerenter', enter);
