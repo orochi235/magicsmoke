@@ -14,8 +14,11 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 - **The portfolio** (`~/src/portfolio`, repo `orochi235.github.io`) deploys to michaelbaker.tech on
   every push to `main`. The masthead runs magicsmoke sparks inside klieg's scene, and the magicsmoke
   entry has a live tile. Both install klieg and magicsmoke from npm.
-- **klieg 0.13.1 is out** with the overload flare (`power({ flare, onState })`, `blowout()`, a
-  `'flaring'` state). The portfolio lockfile still resolves an earlier 0.13.x: `npm ls klieg`.
+- **klieg 0.13.1 is out and live on the masthead** with the overload flare (`power({ flare, onState })`,
+  `blowout()`, a `'flaring'` state). It rode along with the magicsmoke 0.1.2 deploy, since the
+  portfolio's `^0.13.0` resolved to it. Every short now flares by default, so the overload blows the
+  sign out bright — but **silently**: `intensity()` in the masthead mutes the fault in every state
+  but `'on'`, flaring included. The loud half below is what finishes it.
 
 ## Next: move the overload flare into magicsmoke
 
