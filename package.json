@@ -1,6 +1,6 @@
 {
   "name": "magicsmoke",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Sparks, arcs, pops and hum: hardware failing on a web page, in three.js",
   "keywords": [
     "three",
@@ -44,7 +44,8 @@
     "test:browser": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "prepublishOnly": "npm run check && npm run build"
   },
   "dependencies": {
     "three.quarks": "^0.17.1"
