@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>magicsmoke lab</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font: 14px/1.4 system-ui, sans-serif;
+        background: #0c0c10;
+        color: #ddd;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 24px;
+        min-height: calc(100vh - 32px);
+      }
+      @media (max-width: 760px) {
+        body {
+          grid-template-columns: 1fr;
+        }
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      .stage {
+        display: grid;
+        place-items: center;
+        gap: 24px;
+        align-content: center;
+      }
+      .sign {
+        font: 700 64px/1 'Helvetica Neue', Arial, sans-serif;
+        letter-spacing: 0.05em;
+        color: #ff4fb3;
+        text-shadow:
+          0 0 6px #ff4fb3,
+          0 0 24px #ff2a9a;
+        padding: 24px 32px;
+        border: 1px dashed #333;
+        border-radius: 12px;
+        user-select: none;
+      }
+      .readout {
+        font-variant-numeric: tabular-nums;
+        color: #888;
+      }
+      .panel {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+      fieldset {
+        border: 1px solid #2a2a33;
+        border-radius: 8px;
+        display: grid;
+        gap: 8px;
+      }
+      legend {
+        color: #aaa;
+      }
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid #3a3a44;
+        background: #1a1a22;
+        color: inherit;
+      }
+      label {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px 8px;
+        align-items: center;
+      }
+      label input[type='range'] {
+        grid-column: 1 / -1;
+      }
+      output {
+        font-variant-numeric: tabular-nums;
+        color: #aaa;
+      }
+      .check {
+        grid-template-columns: auto 1fr;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <h1>Hover the sign. Click anywhere first to unlock sound.</h1>
+      <div class="sign" id="sign">OPEN</div>
+      <p class="readout" id="readout">dwell 0.00</p>
+    </main>
+    <aside class="panel">
+      <fieldset>
+        <legend>One-shots at the center</legend>
+        <div class="buttons">
+          <button type="button" data-shot="sputter">sputter</button>
+          <button type="button" data-shot="burst">burst</button>
+          <button type="button" data-shot="shower">shower</button>
+          <button type="button" data-shot="arc">arc</button>
+        </div>
+        <label>energy <output id="energy-out"></output>
+          <input id="energy" type="range" min="0" max="1" step="0.01" value="0.6" />
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>Standing fault</legend>
+        <label>intensity <output id="intensity-out"></output>
+          <input id="intensity" type="range" min="0" max="1" step="0.01" value="0" />
+        </label>
+        <label class="check"><input id="arcing" type="checkbox" /> arcs to a second point</label>
+      </fieldset>
+      <fieldset>
+        <legend>Sound</legend>
+        <label>volume <output id="volume-out"></output>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
+        </label>
+        <label class="check"><input id="muted" type="checkbox" /> muted</label>
+      </fieldset>
+      <fieldset id="tuning">
+        <legend>Tuning</legend>
+      </fieldset>
+    </aside>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

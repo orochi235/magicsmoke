@@ -3,7 +3,9 @@
 **For:** whoever builds magicsmoke or wires it into a page. **Answers:** what the library does, how
 its parts fit, and what klieg has to add before sparks can live inside its scene.
 
-**Status: unbuilt.** Written 2026-09-14 against three 0.185, three.quarks 0.17.1 and klieg 0.11.0.
+**Status: built** on 2026-09-14, against three 0.185, three.quarks 0.17.1 and klieg 0.11.0. The
+three klieg additions under "What klieg needs to add" are not built. The lab uses native controls
+rather than labkit.
 
 ## What it is
 
@@ -54,8 +56,12 @@ tuned in pixels), `floor` (a world y that showers and sputter bounce off), `soun
 function createOverlay(options?: OverlayOptions): Overlay;
 ```
 
-The overlay host is a transparent canvas over `target` (default: the viewport), a renderer, and an
-orthographic camera in which one world unit is one CSS pixel. It exposes the same one-shots and
+A layer also has `setFloor(y)`, `volume`, `muted`, a live-editable `tuning`, and takes an
+`onDischarge` option for a caller adding a channel of its own.
+
+The overlay host is a transparent canvas over the whole viewport, so sparks can fall past the
+element that threw them, with a renderer and an orthographic camera in which one world unit is one
+CSS pixel. Its `floor` is a client y, defaulting to the bottom of the viewport. It exposes the same one-shots and
 `fault()` in **client coordinates** (`{ x, y }`, y down) and converts at the boundary. It runs its
 own frame loop and stops it whenever the layer is not `live`. `loop: false` hands the loop to the
 caller as `overlay.render(dt)`, for capture and for tests. It reports `supported: false` where

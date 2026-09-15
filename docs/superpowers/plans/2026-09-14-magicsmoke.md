@@ -2,7 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: in progress** — Task 0 (scaffold + spike) is done at `5478055`.
+**Status: built.** Every task landed on 2026-09-14. Two departures: `Draft` carries an absolute `time`
+rather than an `offset`, and the lab uses native controls rather than labkit.
 
 **Goal:** Build the `magicsmoke` package described in `docs/superpowers/specs/2026-09-14-magicsmoke-design.md`: a three.js layer and overlay host that render sparks, arcs, flashes and synthesized sound driven by a fault's intensity.
 
