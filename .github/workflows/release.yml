@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Retrying a failed publish must not mean moving the tag: once a tag has shipped artifacts,
+  # moving it to re-run a job is how the tag stops matching what was built.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish, e.g. v0.1.1'
+        required: true
+
+# No NPM_TOKEN: this publishes via npm trusted publishing (OIDC), so the credential is short-lived
+# and minted per run. Without `id-token: write` npm falls back to looking for a token and fails.
+# The npmjs.com side must name this exact filename.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >=11.5.1; below it the publish goes up unauthenticated and the
+      # registry answers 404 for a package that exists. This records which npm actually ran.
+      - run: npm -v
+
+      - run: npm ci
+
+      # TAG arrives through env rather than inline `${{ }}`, which would splice the input into the script.
+      - name: Tag must match package.json version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$pkg" ]; then
+            echo "::error::tag $TAG does not match package.json $pkg"
+            exit 1
+          fi
+
+      # A tag for a version already on the registry is a record, not a republish.
+      - name: Skip if this version is already published
+        id: published
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "magicsmoke@$version" version >/dev/null 2>&1; then
+            echo "magicsmoke@$version is already on npm; nothing to publish"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.published.outputs.skip != 'true'
+        run: npm run lint
+      - if: steps.published.outputs.skip != 'true'
+        run: npm run typecheck
+      - if: steps.published.outputs.skip != 'true'
+        run: npm test
+
+      - name: Publish
+        if: steps.published.outputs.skip != 'true'
+        run: npm publish --provenance --access public
