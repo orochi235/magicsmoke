@@ -208,8 +208,8 @@ quietest active voice is stopped for it.
 
 ## What klieg needs to add
 
-None of these block v1; the overlay host serves the masthead without them. Each is a klieg spec,
-built in klieg, as public API.
+None of these block magicsmoke itself. The portfolio masthead waits for them rather than launching
+on the overlay host (decided 2026-09-14). Each is a klieg spec, built in klieg, as public API.
 
 1. **`klieg.attach(layer)`**, returning a detach function: the layer's `object` joins klieg's scene,
    so sparks get bloom and depth, and klieg does not go idle while `layer.live`.
