@@ -26,8 +26,9 @@ Written 2026-09-15. Check it against `git log` before trusting it.
   12 kHz was audible but low. magicsmoke's own default stays a 2.4 kHz ballast buzz. The re-arm
   itself is `strike(REARM)`: 700 ms and 7 blinks against klieg's 1.2 s and 4.
 - **The masthead dims the tubes around a resting cursor** (`MASTHEAD_HUSH` in `mastheadLook.ts`):
-  gain falls with klieg's `near()` times the hover squared, to 0.15 under a held cursor, and lifts
-  while the tube flares. The reach is 1.2 em under a mouse and 3.5 em under a fingertip, which covers
+  the tubes are pulled toward unlit glass with klieg's `near()` times the hover squared, 0.85 of the
+  way under a held cursor, which empties the fill and leaves 15% of the glow; they fill back in while
+  the tube flares. That needs klieg 0.14.0, which renders `PartOffset.dark` for the first time. The reach is 1.2 em under a mouse and 3.5 em under a fingertip, which covers
   about an em of the sign at phone size and hides its own dimming (`mastheadHush`). Its jolt is 3 px and its overload shudder 10 px (`MASTHEAD_SHAKE`).
 - **None of the overload, hush, re-arm or whine has been seen or heard in a browser.** Tests and
   builds pass, but the Playwright MCP was down this session. Every number above is a first guess to
