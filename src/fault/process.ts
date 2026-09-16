@@ -39,6 +39,15 @@ export class FaultProcess {
     return this.eased;
   }
 
+  /** Dark and silent at once, skipping the ease a write to `target` would follow. */
+  snuff(): void {
+    this.target = 0;
+    this.eased = 0;
+    this.excitation = 0;
+    this.surge = 1;
+    this.lift = 0;
+  }
+
   get now(): number {
     return this.ticks * SUBSTEP;
   }

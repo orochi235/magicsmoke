@@ -145,9 +145,10 @@ time it to a sign's own flare. From the call to `peak` the fault holds full inte
 climbs to `tuning.blow.surge` times normal and every discharge gains up to 0.3 energy, both with the
 square of time elapsed, and the jolt element shudders. At `peak` it throws `tuning.blow.showers`
 full-energy showers and a full-energy burst, plus an arc if it has a `to`; these are one-shots, so
-no threshold holds them back, and each shower pops. Intensity then fades linearly to zero over
-`after`. Writes to `intensity` are ignored for the whole blow; afterward the fault sits at zero until
-the next write. A stopped fault, or one already blowing, ignores `blow`.
+no threshold holds them back, and each shower pops. On that same frame the fault goes dark and
+silent, skipping the intensity ease, so nothing dimmer follows the climax but the volley itself.
+Writes to `intensity` are ignored through `after`; afterward the fault sits at zero until the next
+write. A stopped fault, or one already blowing, ignores `blow`.
 
 ## Sparks
 

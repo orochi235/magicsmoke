@@ -45,7 +45,7 @@ export interface FaultSpec {
 export interface BlowSpec {
   /** Milliseconds from the call to the climax. Default 1000. */
   peak?: number;
-  /** Milliseconds from the climax to silence. Default 300. */
+  /** Milliseconds after the climax that the fault stays dead and ignores intensity. Default 300. */
   after?: number;
 }
 
@@ -56,8 +56,8 @@ export interface Fault {
   to: Vec3 | null;
   /**
    * Overloads the fault: it discharges ever faster and harder up to a climax at `peak`, throws a
-   * volley of full-energy showers there, and dies out over `after`, ending at zero. Intensity writes
-   * are ignored until then. Does nothing to a stopped fault or one already blowing.
+   * volley of full-energy showers there, and goes dead on that frame. Intensity writes are ignored
+   * until `after` more milliseconds have passed. Does nothing to a stopped fault or one already blowing.
    */
   blow(spec?: BlowSpec): void;
   /** Winds the fault down to silence, after which the layer forgets it. */
@@ -101,7 +101,7 @@ const seconds = (ms: number | undefined, fallback: number) =>
   Math.max(0, ms !== undefined && Number.isFinite(ms) ? ms : fallback) / 1000;
 
 interface Blowing {
-  /** Seconds since the blow began, and from then to the climax and from the climax to silence. */
+  /** Seconds since the blow began, from then to the climax, and from the climax to the blow's end. */
   elapsed: number;
   peak: number;
   after: number;
@@ -328,7 +328,7 @@ class MagicLayer implements Layer {
     this.object.removeFromParent();
   }
 
-  /** Surges the fault toward its climax, throws the volley there, then fades it to zero. */
+  /** Surges the fault toward its climax, throws the volley there, then holds it dead for `after`. */
   private advanceBlow(fault: FaultHandle, step: number): void {
     const blow = fault.blowing;
     if (!blow) return;
@@ -340,8 +340,7 @@ class MagicLayer implements Layer {
       process.lift = BLOW_LIFT * u * u;
       if (blow.elapsed < blow.peak) return;
       blow.climaxed = true;
-      process.surge = 1;
-      process.lift = 0;
+      process.snuff();
       for (let i = 0; i < this.tuning.blow.showers; i++) {
         this.oneShot({ kind: 'shower', at: { ...fault.at }, energy: 1 });
       }
@@ -351,9 +350,7 @@ class MagicLayer implements Layer {
         this.oneShot({ kind: 'arc', at: { ...fault.at }, to, energy: 1, duration: arcDuration(1) });
       }
     }
-    const fade = blow.after > 0 ? (blow.elapsed - blow.peak) / blow.after : 1;
-    process.target = clamp01(1 - fade);
-    if (fade >= 1) fault.blowing = null;
+    if (blow.elapsed >= blow.peak + blow.after) fault.blowing = null;
   }
 
   private oneShot(discharge: Discharge): void {

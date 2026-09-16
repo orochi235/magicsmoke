@@ -53,6 +53,19 @@ describe('fault.blow', () => {
     expect(layer.live).toBe(false);
   });
 
+  it('goes dead on the frame of its climax, with nothing but the volley after', () => {
+    const { layer, seen, frames } = setup();
+    const fault = layer.fault({ at: origin });
+    fault.blow({ peak: 500, after: 300 });
+    frames(31);
+    const climax = seen.length;
+    expect(fault.intensity).toBe(0);
+    fault.intensity = 0.5;
+    frames(15);
+    expect(fault.intensity).toBe(0);
+    expect(seen.slice(climax).filter((d) => d.intensity !== undefined)).toHaveLength(0);
+  });
+
   it('arcs at the climax when the fault has somewhere to land', () => {
     const { layer, seen, frames } = setup();
     layer.fault({ at: origin, to: { x: 9, y: 0, z: 0 } }).blow({ peak: 0 });
