@@ -29,3 +29,10 @@ test('a fault at full intensity draws within a second', async ({ page }) => {
   expect(report.lit).toBeGreaterThan(50);
   expect(report.overAlpha).toBe(0);
 });
+
+test('a fault on the blits engine draws within a second too', async ({ page }) => {
+  const report = await page.evaluate(() => window.harness.renderSmokeFault());
+  expect(report.supported).toBe(true);
+  expect(report.lit).toBeGreaterThan(50);
+  expect(report.overAlpha).toBe(0);
+});

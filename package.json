@@ -45,7 +45,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "prepublishOnly": "npm run check && npm run build"
+    "prepublishOnly": "npm run check && npm run build",
+    "bench": "npm run build && node bench/frame.mjs"
   },
   "dependencies": {
     "blits": "file:../blits",

@@ -224,17 +224,16 @@ export interface Smoke {
 
 class SmokeEngine implements Smoke {
   private readonly stage: Stage;
-  private readonly mix: Mix<FaultRecord, Quiet>;
-  private readonly faults = new Map<FaultRecord, Fault>();
+  /**
+   * A mix per fault: a fault's voice reaches only its own record, and one shared mix would test
+   * every voice's target on every probe, which costs the square of the fault count.
+   */
+  private readonly faults = new Map<FaultRecord, { handle: Fault; mix: Mix<FaultRecord, Quiet> }>();
   /** The last synced timestamp; NaN before the first sync and after a rebase. */
   private last = Number.NaN;
 
   constructor(options: LayerOptions) {
     this.stage = new Stage(options);
-    this.mix = mix<FaultRecord, Quiet>(kit<Quiet>({}), {
-      stepMs: SUBSTEP * 1000,
-      maxDt: MAX_STEP * 1000,
-    });
   }
 
   get object(): Object3D {
@@ -287,19 +286,22 @@ class SmokeEngine implements Smoke {
       patch.at,
       patch.to,
     );
-    const inner = this.mix.cue({
+    const faultMix = mix<FaultRecord, Quiet>(kit<Quiet>({}), {
+      stepMs: SUBSTEP * 1000,
+      maxDt: MAX_STEP * 1000,
+    });
+    const inner = faultMix.cue({
       // The process counts the frame before its first advance, so its grid starts at the last sync.
       start: Number.isNaN(this.last) ? undefined : this.last,
       ...(spec as VoiceSpec<FaultRecord, Quiet>),
       tags: [TAG, ...(spec.tags ?? [])],
       patch: FAULT,
-      target: (subject) => subject === record,
     });
     const handle = new Fault(record, inner, this, spec.fade?.out);
     if (typeof spec.weight === 'number' || spec.weight === undefined) {
       record.aim(spec.weight ?? 1, 0);
     }
-    if (!this.stage.disposed) this.faults.set(record, handle);
+    if (!this.stage.disposed) this.faults.set(record, { handle, mix: faultMix });
     return handle;
   }
 
@@ -312,21 +314,20 @@ class SmokeEngine implements Smoke {
     const gap = Number.isNaN(this.last) ? 0 : timestamp - this.last;
     const step = Math.min(Math.max(gap / 1000, 0), MAX_STEP);
     this.last = timestamp;
-    this.mix.sync(timestamp);
-    for (const [record, handle] of this.faults) {
+    for (const [record, { handle, mix: faultMix }] of this.faults) {
+      faultMix.sync(timestamp);
       if (record.blowing) {
         this.stage.advanceBlow(record, step);
         record.holding = record.blowing === null;
       }
-      this.mix.probe(record);
+      faultMix.probe(record);
       record.holding = false;
-      // Drained per fault, so each fault's discharges render together, in the order the old
-      // engine renders them; the page's random stream is shared and order decides its draws.
-      for (const sent of this.mix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
+      // Each fault's discharges render together, in the order the old engine renders them; the
+      // page's random stream is shared and order decides its draws.
+      for (const sent of faultMix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
       this.stage.settle(record, step);
       if (record.fading && record.process.target === 0 && record.process.level < SILENT) {
         handle.retire();
-        this.mix.drop(record);
         this.faults.delete(record);
       }
     }
@@ -334,7 +335,7 @@ class SmokeEngine implements Smoke {
   }
 
   rebase(): void {
-    this.mix.rebase();
+    for (const { mix: faultMix } of this.faults.values()) faultMix.rebase();
     this.last = Number.NaN;
   }
 
@@ -356,7 +357,7 @@ class SmokeEngine implements Smoke {
 
   dispose(): void {
     if (this.stage.disposed) return;
-    this.mix.mute({ over: 0 });
+    for (const { mix: faultMix } of this.faults.values()) faultMix.mute({ over: 0 });
     this.faults.clear();
     this.stage.dispose();
   }

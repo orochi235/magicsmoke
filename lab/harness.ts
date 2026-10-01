@@ -11,6 +11,7 @@ import {
 } from '../src/audio/voices.js';
 import { createOverlay } from '../src/overlay.js';
 import { mulberry32 } from '../src/rng.js';
+import { createSmokeOverlay } from '../src/smoke-overlay.js';
 import { DEFAULT_TUNING } from '../src/tuning.js';
 
 export type VoiceName = 'pop' | 'crackle' | 'shower' | 'arc' | 'hum' | 'whine';
@@ -155,6 +156,24 @@ function renderFault(): PixelReport {
   return { supported: true, ...best };
 }
 
+/** `renderFault` on the blits engine, synced from a clock rather than handed a step. */
+function renderSmokeFault(): PixelReport {
+  const overlay = createSmokeOverlay({ seed: 2, loop: false });
+  if (!overlay.supported) return { supported: false, lit: 0, overAlpha: 0, cornerAlpha: 0 };
+  overlay.sync(0);
+  overlay.cue({ at: { x: innerWidth / 2, y: innerHeight / 3 } }, { weight: 1 });
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.magicsmoke-overlay');
+  if (!canvas) throw new Error('overlay canvas missing');
+  let best = { lit: 0, overAlpha: 0, cornerAlpha: 0 };
+  for (let i = 1; i <= 60; i++) {
+    overlay.sync((i * 1000) / 60);
+    const report = pixels(canvas);
+    if (report.lit > best.lit) best = report;
+  }
+  overlay.dispose();
+  return { supported: true, ...best };
+}
+
 // Built at load rather than inside a test's `evaluate`, which Playwright runs as a user gesture.
 const engine = new AudioEngine({}, mulberry32(3));
 
@@ -218,6 +237,7 @@ const harness = {
   renderWhineTone,
   renderBurst,
   renderFault,
+  renderSmokeFault,
   renderFlashStack,
   renderPopSpread,
   /** Fires a discharge at the page's engine and reports whether audio has unlocked. */
