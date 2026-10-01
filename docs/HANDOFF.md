@@ -5,17 +5,14 @@ work stands, what is next, and the decisions made in conversation that the code 
 
 Written 2026-09-15. Check it against `git log` before trusting it.
 
-**2026-09-30: magicsmoke runs on blits**, on branch `blits-engine`, not merged yet. Every fault is a
-blits voice (`src/smoke.ts`); `createLayer` and `createOverlay` are aliases over it
+**2026-09-30: magicsmoke 0.5.0 runs on blits.** Every fault is a voice on `@msb235/blits`
+(pinned exactly, `src/smoke.ts`); `createLayer` and `createOverlay` are aliases over it
 (`src/layer.ts`, `src/overlay.ts`, `src/alias.ts`), and the old engine is deleted.
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
-can no longer be re-recorded. What is left:
-
-- **Ready to merge.** `@msb235/blits` is pinned to exactly `0.1.1` from npm. blits follows semver
-  and bumps the minor for a breaking change below 1.0.0, so a minor bump there needs reading first.
-- **Enlist for the fleet** (`onto-enlist`) once merged.
-- `npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100,
-  1.27 at 1000.
+can no longer be re-recorded. blits bumps its minor for a breaking change below 1.0.0, so read a
+minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
+`npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100, 1.27
+at 1000.
 
 The rest of this page predates that.
 
