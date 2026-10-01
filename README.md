@@ -109,6 +109,11 @@ has. `dwell` is callable, so it is a signal as it stands.
   stays.
 - Where WebGL is unavailable the overlay reports `supported: false` and every call does nothing.
 
+## Versions
+
+Below 1.0.0 a release may change the API in a minor version. From 1.0.0 on, magicsmoke follows
+semver: a breaking change takes a major version.
+
 ## Development
 
 ```sh
