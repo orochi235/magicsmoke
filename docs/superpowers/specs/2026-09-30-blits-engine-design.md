@@ -35,8 +35,9 @@ how the old API becomes an alias, and where the two engines are known to differ.
   part after a long gap; with 140 ms gaps every discharge still matches.
 - **A blow holds its target through the frame it ends**, because the old engine dropped an
   intensity written that frame; without it the new engine resumes one frame early.
-- **One mix per fault**, not one shared: a fault's voice reaches only its own record, and a shared
-  mix tested every voice's `target` on every probe, which made 100 faults cost 0.404 ms.
+- **One mix per fault**, not one shared. A shared mix tested every voice's `target` on every probe,
+  which made 100 faults cost 0.404 ms; blits `1b1d841` fixed that, so a shared mix is now an option,
+  not a cost. Against `1b1d841` the table above is unchanged within noise.
 
 ## Left to do
 

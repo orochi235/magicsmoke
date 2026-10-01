@@ -224,10 +224,7 @@ export interface Smoke {
 
 class SmokeEngine implements Smoke {
   private readonly stage: Stage;
-  /**
-   * A mix per fault: a fault's voice reaches only its own record, and one shared mix would test
-   * every voice's target on every probe, which costs the square of the fault count.
-   */
+  /** A mix per fault: a fault's voice reaches only its own record, so nothing is shared. */
   private readonly faults = new Map<FaultRecord, { handle: Fault; mix: Mix<FaultRecord, Quiet> }>();
   /** The last synced timestamp; NaN before the first sync and after a rebase. */
   private last = Number.NaN;
