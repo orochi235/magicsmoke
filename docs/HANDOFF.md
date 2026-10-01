@@ -5,9 +5,20 @@ work stands, what is next, and the decisions made in conversation that the code 
 
 Written 2026-09-15. Check it against `git log` before trusting it.
 
-**2026-09-30: a second engine on blits** is built on branch `blits-engine` (not merged; blits is
-linked by `file:`). What is left and what it measured is in
-`docs/superpowers/specs/2026-09-30-blits-engine-design.md`; the rest of this page predates it.
+**2026-09-30: magicsmoke runs on blits**, on branch `blits-engine`, not merged. Every fault is a
+blits voice (`src/smoke.ts`); `createLayer` and `createOverlay` are aliases over it
+(`src/layer.ts`, `src/overlay.ts`, `src/alias.ts`), and the old engine is deleted.
+`test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
+can no longer be re-recorded. What is left:
+
+- **Merge waits on blits publishing.** `package.json` takes blits as `file:../blits`, which no other
+  machine or npm install resolves. Switch it to the published name (possibly `@msb235/blits`), then
+  merge and release.
+- **Enlist for the fleet** (`onto-enlist`) once merged.
+- `npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100,
+  1.27 at 1000.
+
+The rest of this page predates that.
 
 ## Where it stands
 
