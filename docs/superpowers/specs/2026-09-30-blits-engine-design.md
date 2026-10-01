@@ -75,7 +75,9 @@ Two blits settings are load-bearing for parity:
 
 - **`start`.** blits counts the grid from a voice's `start`, by default the next sync. The old
   process counts the gap before its first `update` as process time, so `smoke.cue` passes the last
-  synced timestamp as `start`.
+  synced timestamp as `start`. Both count from the frame before the first advance. A fault cued
+  before any sync falls back to blits' default; the parity suite and the `update(dt)` alias avoid
+  that by syncing at 0 when they create the engine.
 - **No `reduce` on the fault mix.** Under reduced motion blits steps by the frame gap instead of the
   grid. magicsmoke's own reduced motion (half the particles, no lights, no jolt) stays where it is.
 
