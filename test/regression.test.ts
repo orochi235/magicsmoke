@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { level } from 'blits';
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
@@ -25,7 +27,7 @@ interface Seen {
   d: Discharge;
 }
 
-function oldEngine(seed: number, seen: Seen[], frame: () => number): Engine {
+function layerEngine(seed: number, seen: Seen[], frame: () => number): Engine {
   const layer = createLayer({ seed, onDischarge: (d) => seen.push({ frame: frame(), d }) });
   new Scene().add(layer.object);
   const drive = (f: Fault): Driver => ({
@@ -45,7 +47,7 @@ function oldEngine(seed: number, seen: Seen[], frame: () => number): Engine {
   };
 }
 
-function newEngine(seed: number, seen: Seen[], frame: () => number, signal = false): Engine {
+function smokeEngine(seed: number, seen: Seen[], frame: () => number, signal = false): Engine {
   const smoke = createSmoke({ seed, onDischarge: (d) => seen.push({ frame: frame(), d }) });
   new Scene().add(smoke.object);
   let clock = 0;
@@ -95,30 +97,52 @@ function run(
   return { seen, live };
 }
 
+type Make = (seed: number, seen: Seen[], frame: () => number) => Engine;
+
+const ENGINES: Record<string, Make> = {
+  layer: layerEngine,
+  smoke: smokeEngine,
+  signal: (seed, seen, frame) => smokeEngine(seed, seen, frame, true),
+};
+
 /**
- * The old engine is handed each gap and the new one a clock summed from them, so a value derived
- * from elapsed time can differ in its last bits; nothing coarser may.
+ * What a run threw, reduced to a digest. Energies and intensities are rounded to 12 places: the
+ * layer API is handed each gap and `createSmoke` a clock summed from them, so a value derived from
+ * elapsed time can differ in its last bits; nothing coarser may.
  */
-const rounded = (seen: Seen[]) =>
-  seen.map(({ frame, d }) => ({
+function digest(gaps: readonly number[], script: Script, make: Make, seed?: number) {
+  const { seen, live } = run(make, gaps, script, seed);
+  const rows = seen.map(({ frame, d }) => ({
     ...d,
     frame,
     energy: d.energy.toFixed(12),
     intensity: d.intensity?.toFixed(12),
   }));
+  const hash = createHash('sha256').update(JSON.stringify({ rows, live })).digest('hex');
+  return { count: rows.length, hash, quiet: live.at(-1) === false };
+}
 
-function expectParity(
-  gaps: readonly number[],
-  script: Script,
-  seed?: number,
-  make: typeof newEngine = newEngine,
-) {
-  const before = run(oldEngine, gaps, script, seed);
-  const after = run(make, gaps, script, seed);
-  expect(before.seen.length).toBeGreaterThan(0);
-  expect(rounded(after.seen)).toEqual(rounded(before.seen));
-  expect(after.live).toEqual(before.live);
-  return before;
+/**
+ * Recorded 2026-09-30 from the engine magicsmoke ran before blits, with `RECORD=1 npx vitest run
+ * test/regression.test.ts`. Every engine below has to reproduce it exactly.
+ */
+const FIXTURE = new URL('./regression.json', import.meta.url);
+const recording = process.env.RECORD === '1';
+const recorded: Record<string, ReturnType<typeof digest>> = recording
+  ? {}
+  : JSON.parse(readFileSync(FIXTURE, 'utf8'));
+
+function expectRecorded(name: string, gaps: readonly number[], script: Script, seed?: number) {
+  if (recording) {
+    recorded[name] = digest(gaps, script, layerEngine, seed);
+    writeFileSync(FIXTURE, `${JSON.stringify(recorded, null, 2)}\n`);
+    return;
+  }
+  const want = recorded[name];
+  expect(want?.count).toBeGreaterThan(0);
+  for (const [engine, make] of Object.entries(ENGINES)) {
+    expect({ engine, ...digest(gaps, script, make, seed) }).toEqual({ engine, ...want });
+  }
 }
 
 const steady = (fps: number, seconds: number) =>
@@ -134,11 +158,11 @@ const A = { x: 0, y: 0, z: 0 };
 const B = { x: 120, y: -40, z: 0 };
 const C = { x: -60, y: 30, z: 0 };
 
-describe('the blits engine against the old one', () => {
+describe('every engine against the recorded sequences', () => {
   for (const fps of [30, 60, 120, 144]) {
-    it(`throws the same discharges from a fault held steady at ${fps} fps`, () => {
+    it(`throws the recorded discharges from a fault held steady at ${fps} fps`, () => {
       let f: Driver;
-      expectParity(steady(fps, 6), (e, i) => {
+      expectRecorded(`steady ${fps}`, steady(fps, 6), (e, i) => {
         if (i === 0) f = e.fault(A, B, 0.7);
         if (i === Math.round(fps * 2)) f.set(1);
       });
@@ -147,7 +171,7 @@ describe('the blits engine against the old one', () => {
 
   it('follows an intensity written every frame, over jittered frames', () => {
     let f: Driver;
-    expectParity(jittered(600, 3), (e, i) => {
+    expectRecorded('written', jittered(600, 3), (e, i) => {
       if (i === 0) f = e.fault(A, null, 0);
       f.set(0.5 + 0.5 * Math.sin(i / 40));
     });
@@ -155,7 +179,7 @@ describe('the blits engine against the old one', () => {
 
   it('keeps several faults, cued at different frames, apart', () => {
     let faults: Driver[] = [];
-    expectParity(steady(60, 8), (e, i) => {
+    expectRecorded('several', steady(60, 8), (e, i) => {
       if (i === 0) faults = [e.fault(A, B, 0.8)];
       if (i === 45) faults.push(e.fault(B, null, 0.6));
       if (i === 200) faults.push(e.fault(C, A, 1));
@@ -163,49 +187,43 @@ describe('the blits engine against the old one', () => {
     });
   });
 
-  it('blows the same way, with the host writing intensity throughout', () => {
+  it('blows, with the host writing intensity throughout', () => {
     let f: Driver;
-    expectParity(steady(60, 5), (e, i) => {
+    expectRecorded('blow', steady(60, 5), (e, i) => {
       if (i === 0) f = e.fault(A, B, 0.6);
       f.set(0.9);
       if (i === 60) f.blow(1000, 300);
     });
   });
 
-  it('winds a stopped fault down the same way and goes quiet on the same frame', () => {
+  it('winds a stopped fault down and goes quiet', () => {
     let f: Driver;
-    const { live } = expectParity(steady(60, 4), (e, i) => {
+    expectRecorded('stop', steady(60, 4), (e, i) => {
       if (i === 0) f = e.fault(A, B, 1);
       if (i === 120) f.stop();
     });
-    expect(live.at(-1)).toBe(false);
+    if (!recording) expect(recorded.stop?.quiet).toBe(true);
   });
 
-  it('interleaves one-shots with a fault the same way', () => {
-    expectParity(jittered(400, 11), (e, i) => {
+  it('interleaves one-shots with a fault', () => {
+    expectRecorded('one-shots', jittered(400, 11), (e, i) => {
       if (i === 0) e.fault(A, B, 0.9);
       if (i % 37 === 5) e.burst(C, 0.8);
     });
   });
 
-  it('follows a level signal as it follows written intensity', () => {
+  it('ramps up, then blows', () => {
     let f: Driver;
-    const signalled: typeof newEngine = (seed, seen, frame) => newEngine(seed, seen, frame, true);
-    expectParity(
-      jittered(600, 5),
-      (e, i) => {
-        if (i === 0) f = e.fault(A, B, 0);
-        f.set(Math.min(1, i / 200));
-        if (i === 400) f.blow(800, 200);
-      },
-      7,
-      signalled,
-    );
+    expectRecorded('ramp and blow', jittered(600, 5), (e, i) => {
+      if (i === 0) f = e.fault(A, B, 0);
+      f.set(Math.min(1, i / 200));
+      if (i === 400) f.blow(800, 200);
+    });
   });
 
-  it('takes gaps longer than a step the same way', () => {
+  it('takes gaps longer than a step', () => {
     const gaps = steady(60, 6).map((gap, i) => (i % 50 === 25 ? 140 : gap));
-    expectParity(gaps, (e, i) => {
+    expectRecorded('long gaps', gaps, (e, i) => {
       if (i === 0) e.fault(A, B, 0.9);
     });
   });

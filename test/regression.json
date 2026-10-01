@@ -1,0 +1,57 @@
+{
+  "steady 30": {
+    "count": 24,
+    "hash": "f4600e321b45ca9538f6d165c4af69c405a597b609e22f67a6ec85304e7936a0",
+    "quiet": false
+  },
+  "steady 60": {
+    "count": 24,
+    "hash": "2dbc0e7c44d5c9774bcce437ac99fb4a20057e0c6413bbacc6abe16187184869",
+    "quiet": false
+  },
+  "steady 120": {
+    "count": 24,
+    "hash": "9589ed17c97ae3ca32019f89073962665f9a95d6637d33e94f19069950689ba9",
+    "quiet": false
+  },
+  "steady 144": {
+    "count": 24,
+    "hash": "169e957f25a803ad40e9dd986f89e8ff3a9ae15d0361158b2bb04036f333a4a8",
+    "quiet": false
+  },
+  "written": {
+    "count": 36,
+    "hash": "c766e913f38ed00185fbcc4e1a0d7b1edb3becf9f85b8ac02c68c6b96cfa52e4",
+    "quiet": false
+  },
+  "several": {
+    "count": 47,
+    "hash": "28d3d030a30138d6918aace054bf8aec98e093a98c33cbd030f590cab967ca8d",
+    "quiet": false
+  },
+  "blow": {
+    "count": 25,
+    "hash": "df14c8aac33b3b77c01d48a86f5e2d07a5185e3a122847775979bf72fcca935e",
+    "quiet": false
+  },
+  "stop": {
+    "count": 5,
+    "hash": "5cdabf984b01a44a8ce6a588a3869efefb6f95086434582eda43390b5b1cb33e",
+    "quiet": true
+  },
+  "one-shots": {
+    "count": 39,
+    "hash": "65f8e112737eb0e463bd84cc514f982c08da0cba9326418e40d9836b6d8aaeff",
+    "quiet": false
+  },
+  "ramp and blow": {
+    "count": 51,
+    "hash": "17b9fc95d8145b1e869953350bff8bb8357fe3bdda57ed5281191ba5fed5cbb2",
+    "quiet": false
+  },
+  "long gaps": {
+    "count": 21,
+    "hash": "cb62b4876513d690bf59d4c4c9299be45a7e77963051e81766d2a5868a6e5143",
+    "quiet": false
+  }
+}
