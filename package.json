@@ -48,6 +48,7 @@
     "prepublishOnly": "npm run check && npm run build"
   },
   "dependencies": {
+    "blits": "file:../blits",
     "three.quarks": "^0.17.1"
   },
   "peerDependencies": {
