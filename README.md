@@ -57,6 +57,33 @@ tube striking back on: it comes in at once and fades out when set back to 0.
 `layer.live` is false once nothing is moving, lit or
 sounding, so a host can stop rendering.
 
+## On the blits engine
+
+`createSmoke` and `createSmokeOverlay` run each fault as a voice on [blits](https://github.com/orochi235/blits),
+which mixes concurrent effects: a fault's weight is its intensity, as a number or any blits signal,
+and the host reports the clock once a frame. It takes the same options as `createLayer`, and the
+same seed throws the same discharges as the old engine.
+
+```ts
+import { createSmoke, dwell, fault } from 'magicsmoke';
+
+const smoke = createSmoke({ sound: true, scale: 0.01 });
+scene.add(smoke.object);
+
+const f = smoke.cue(fault({ at, to }), { weight: dwell(sign, { rise: 1500, fall: 600 }) });
+renderer.setAnimationLoop((time) => {
+  smoke.sync(time);
+  renderer.render(scene, camera);
+});
+document.addEventListener('visibilitychange', () => document.hidden || smoke.rebase());
+
+f.fade({ over: 300 }); // winds down to silence, then leaves
+```
+
+A fault cued with no weight plays at full. While it blows it ignores its weight, and follows it again
+once the blow is over. `dwell` is callable, so it is a signal as it stands. blits is linked from a
+sibling checkout until it is published, so this engine lives on the `blits-engine` branch.
+
 ## Options
 
 | Option | Default | Effect |
@@ -85,7 +112,9 @@ sounding, so a host can stop rendering.
 ## Development
 
 ```sh
-npm run dev           # the lab: one-shots, a standing fault, a hover target, live tuning
+npm run dev           # the lab: one-shots, a standing fault, a hover target, live tuning;
+                      # add ?engine=smoke to either page to run it on the blits engine
+npm run bench         # per-frame CPU cost of both engines at 1, 10 and 100 faults
 npm test              # Node tests
 npm run test:browser  # Playwright: rendered pixels and offline-rendered voices
 npm run check         # lint, typecheck, Node tests

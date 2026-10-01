@@ -5,6 +5,10 @@ work stands, what is next, and the decisions made in conversation that the code 
 
 Written 2026-09-15. Check it against `git log` before trusting it.
 
+**2026-09-30: a second engine on blits** is built on branch `blits-engine` (not merged; blits is
+linked by `file:`). What is left and what it measured is in
+`docs/superpowers/specs/2026-09-30-blits-engine-design.md`; the rest of this page predates it.
+
 ## Where it stands
 
 - **magicsmoke** is public at `orochi235/magicsmoke` and on npm. Releases publish from a `v*` tag
