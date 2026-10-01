@@ -1,11 +1,15 @@
-import { dwell, type ParamSpec, TUNING_SCHEMA, type TuningGroup } from '../src/index.js';
-import { engineName, overlayFor } from './engines.js';
+import {
+  createOverlay,
+  dwell,
+  type ParamSpec,
+  TUNING_SCHEMA,
+  type TuningGroup,
+} from '../src/index.js';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const sign = $<HTMLDivElement>('sign');
-const overlay = overlayFor({ sound: true, jolt: sign, haptics: true });
-document.title += engineName === 'smoke' ? ' · blits engine' : ' · old engine';
+const overlay = createOverlay({ sound: true, jolt: sign, haptics: true });
 
 function center() {
   return { x: innerWidth * 0.35, y: innerHeight * 0.3 };

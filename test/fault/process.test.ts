@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { type Draft, FaultProcess } from '../../src/fault/process.js';
+import { type Draft, FaultProcess, SUBSTEP } from '../../src/fault/process.js';
 import { DEFAULT_FAULT_TUNING as T } from '../../src/fault/tuning.js';
 import { mulberry32 } from '../../src/rng.js';
 
 function run(
   k: number,
   seconds: number,
-  dt = 1 / 60,
   seed = 42,
   prepare: (process: FaultProcess) => void = () => {},
 ): Draft[] {
@@ -14,8 +13,11 @@ function run(
   process.target = k;
   prepare(process);
   const drafts: Draft[] = [];
-  const frames = Math.round(seconds / dt);
-  for (let i = 0; i < frames; i++) drafts.push(...process.step(dt));
+  const ticks = Math.round(seconds / SUBSTEP);
+  for (let i = 0; i < ticks; i++) {
+    const draft = process.tick();
+    if (draft) drafts.push(draft);
+  }
   return drafts;
 }
 
@@ -38,30 +40,12 @@ describe('FaultProcess', () => {
     expect(sd / mean).toBeGreaterThan(1.1);
   });
 
-  it('produces the same sequence however frames are chunked', () => {
-    const a = run(0.8, 10, 0.01);
-    const b = run(0.8, 10, 0.016);
-    expect(a.length).toBe(b.length);
-    a.forEach((draft, i) => {
-      expect(b[i]?.kind).toBe(draft.kind);
-      expect(b[i]?.energy).toBe(draft.energy);
-      expect(b[i]?.time).toBeCloseTo(draft.time, 9);
-    });
-  });
-
-  it('advances at most 50 ms per step', () => {
-    const process = new FaultProcess(mulberry32(1));
-    process.target = 1;
-    process.step(5);
-    expect(process.now).toBeCloseTo(0.05, 9);
-  });
-
   it('eases intensity toward its target', () => {
     const process = new FaultProcess(mulberry32(1));
     process.target = 1;
-    for (let i = 0; i < 20; i++) process.step(0.005);
+    for (let i = 0; i < 20; i++) process.tick();
     expect(process.level).toBeCloseTo(1 - Math.exp(-1), 2);
-    for (let i = 0; i < 40; i++) process.step(0.005);
+    for (let i = 0; i < 40; i++) process.tick();
     expect(process.level).toBeCloseTo(1 - Math.exp(-3), 2);
   });
 
@@ -82,7 +66,7 @@ describe('FaultProcess', () => {
 
   it('discharges faster under a surge and harder under a lift', () => {
     const plain = run(0.5, 120);
-    const surged = run(0.5, 120, 1 / 60, 42, (process) => {
+    const surged = run(0.5, 120, 42, (process) => {
       process.surge = 3;
       process.lift = 0.2;
     });
@@ -91,7 +75,7 @@ describe('FaultProcess', () => {
   });
 
   it('keeps one seed’s sequence stable', () => {
-    const drafts = run(0.7, 5, 1 / 60, 7)
+    const drafts = run(0.7, 5, 7)
       .slice(0, 20)
       .map((d) => `${d.kind} ${d.energy.toFixed(6)} ${d.time.toFixed(3)}`);
     expect(drafts).toMatchSnapshot();

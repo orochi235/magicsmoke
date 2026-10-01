@@ -12,7 +12,6 @@ export interface Draft {
 
 /** Seconds per substep. */
 export const SUBSTEP = 0.005;
-const MAX_STEP = 0.05;
 const SILENT = 1e-3;
 
 /** When a fault discharges and how hard, with no rendering or sound attached. */
@@ -27,7 +26,6 @@ export class FaultProcess {
   private readonly tuning: FaultTuning;
   private eased = 0;
   private excitation = 0;
-  private elapsed = 0;
   private ticks = 0;
   private showerReady = 0;
 
@@ -51,19 +49,6 @@ export class FaultProcess {
 
   get now(): number {
     return this.ticks * SUBSTEP;
-  }
-
-  step(dt: number): Draft[] {
-    const drafts: Draft[] = [];
-    this.elapsed += Math.min(Math.max(dt, 0), MAX_STEP);
-    // Substeps count from the start of the process rather than per call, so a seed produces the
-    // same sequence however the caller chunks its frames.
-    const due = Math.floor(this.elapsed / SUBSTEP + 1e-6);
-    while (this.ticks < due) {
-      const draft = this.tick();
-      if (draft) drafts.push(draft);
-    }
-    return drafts;
   }
 
   /** One substep of `SUBSTEP` seconds: eases, maybe discharges, and decays the excitation. */

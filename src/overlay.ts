@@ -1,7 +1,8 @@
-import { type Object3D, OrthographicCamera, Scene, WebGLRenderer } from 'three';
-import { type BlowSpec, createLayer, type Fault, type Layer, type LayerOptions } from './layer.js';
+import { IntensityFault } from './alias.js';
+import type { BlowSpec, LayerOptions } from './layer.js';
+import { createSmokeOverlay, type SmokeOverlay, unwrap } from './smoke-overlay.js';
 import { resolveTuning, type Tuning } from './tuning.js';
-import type { Point, Vec3 } from './types.js';
+import type { Point } from './types.js';
 
 export interface OverlayOptions extends Omit<LayerOptions, 'scale' | 'floor' | 'pan'> {
   /** Client y that bouncing sparks land on. Defaults to the bottom of the viewport; `null` for none. */
@@ -45,55 +46,6 @@ export interface Overlay {
   dispose(): void;
 }
 
-const CLASS = 'magicsmoke-overlay';
-const CSS = `.${CLASS}{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483000}`;
-
-class OverlayFaultHandle implements OverlayFault {
-  private readonly inner: Fault;
-  private readonly wake: () => void;
-
-  constructor(inner: Fault, wake: () => void) {
-    this.inner = inner;
-    this.wake = wake;
-  }
-
-  get intensity(): number {
-    return this.inner.intensity;
-  }
-
-  set intensity(value: number) {
-    this.inner.intensity = value;
-    this.wake();
-  }
-
-  get at(): Point {
-    return toClient(this.inner.at);
-  }
-
-  set at(point: Point) {
-    this.inner.at = toWorld(point);
-  }
-
-  get to(): Point | null {
-    return this.inner.to ? toClient(this.inner.to) : null;
-  }
-
-  set to(point: Point | null) {
-    this.inner.to = point ? toWorld(point) : null;
-    this.wake();
-  }
-
-  blow(spec?: BlowSpec): void {
-    this.inner.blow(spec);
-    this.wake();
-  }
-
-  stop(): void {
-    this.inner.stop();
-    this.wake();
-  }
-}
-
 class InertFault implements OverlayFault {
   intensity = 0;
   at: Point;
@@ -126,199 +78,87 @@ class Unsupported implements Overlay {
   dispose(): void {}
 }
 
-/** What a canvas overlay needs from whichever engine it draws. */
-export interface Drawn {
-  readonly object: Object3D;
-  setFloor(y: number | null): void;
-  dispose(): void;
-}
-
-/** A transparent canvas over the viewport and the frame loop that draws it. */
-export abstract class Canvas {
+class OverlayAlias implements Overlay {
   readonly supported = true;
-  protected readonly renderer: WebGLRenderer;
-  protected readonly scene = new Scene();
-  protected readonly camera = new OrthographicCamera(0, 1, 0, -1, -1000, 1000);
-  protected disposed = false;
-  private readonly style: HTMLStyleElement;
-  private readonly loop: boolean;
-  private readonly floor: number | null | undefined;
-  private frame = 0;
-  private drawn: Drawn | null = null;
+  private readonly smoke: SmokeOverlay;
+  /** The clock `render` advances and hands to `sync`, in ms. */
+  private clock = 0;
 
-  constructor(renderer: WebGLRenderer, options: { loop?: boolean; floor?: number | null }) {
-    this.renderer = renderer;
-    this.loop = options.loop ?? true;
-    this.floor = options.floor;
-    this.style = document.createElement('style');
-    this.style.textContent = CSS;
-    document.head.appendChild(this.style);
-    renderer.domElement.classList.add(CLASS);
-    renderer.setClearColor(0x000000, 0);
-    document.body.appendChild(renderer.domElement);
-  }
-
-  /** Puts the engine on the canvas; call once from the subclass constructor. */
-  protected mount(drawn: Drawn): void {
-    this.drawn = drawn;
-    this.scene.add(drawn.object);
-    this.resize();
-    window.addEventListener('resize', this.resize);
-  }
-
-  /** Advances to `now`, the rAF timestamp, and draws. */
-  protected abstract frameAt(now: number): void;
-
-  /** Whether the loop should run another frame. */
-  protected abstract get awake(): boolean;
-
-  /** The loop slept; the next frame is the first after a pause. */
-  protected slept(): void {}
-
-  dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    if (this.frame) cancelAnimationFrame(this.frame);
-    window.removeEventListener('resize', this.resize);
-    this.drawn?.dispose();
-    this.renderer.dispose();
-    this.renderer.domElement.remove();
-    this.style.remove();
-  }
-
-  private readonly resize = () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(width, height, false);
-    this.camera.right = width;
-    this.camera.bottom = -height;
-    this.camera.updateProjectionMatrix();
-    const floor = this.floor === undefined ? height : this.floor;
-    this.drawn?.setFloor(floor === null ? null : -floor);
-  };
-
-  protected readonly wake = () => {
-    if (!this.loop || this.frame || this.disposed) return;
-    this.frame = requestAnimationFrame(this.tick);
-  };
-
-  private readonly tick = (now: number) => {
-    this.frame = 0;
-    this.frameAt(now);
-    if (this.awake) this.wake();
-    else this.slept();
-  };
-}
-
-export const toWorld = (p: Point): Vec3 => ({ x: p.x, y: -p.y, z: 0 });
-export const toClient = (v: Vec3): Point => ({ x: v.x, y: -v.y });
-
-/** Stereo position across the viewport, kept off the extremes. */
-export const viewportPan = (at: Vec3) =>
-  Math.max(-1, Math.min(1, (at.x / window.innerWidth) * 2 - 1)) * 0.8;
-
-class WebGLOverlay extends Canvas implements Overlay {
-  private readonly layer: Layer;
-  private last: number | null = null;
-
-  constructor(renderer: WebGLRenderer, options: OverlayOptions) {
-    super(renderer, options);
-    this.layer = createLayer({ ...options, scale: 1, floor: null, pan: viewportPan });
-    this.mount(this.layer);
+  constructor(smoke: SmokeOverlay) {
+    this.smoke = smoke;
   }
 
   get live(): boolean {
-    return this.layer.live;
+    return this.smoke.live;
   }
 
   get tuning(): Tuning {
-    return this.layer.tuning;
+    return this.smoke.tuning;
   }
 
   get volume(): number {
-    return this.layer.volume;
+    return this.smoke.volume;
   }
 
   set volume(value: number) {
-    this.layer.volume = value;
+    this.smoke.volume = value;
   }
 
   get muted(): boolean {
-    return this.layer.muted;
+    return this.smoke.muted;
   }
 
   set muted(value: boolean) {
-    this.layer.muted = value;
+    this.smoke.muted = value;
   }
 
   get whine(): number {
-    return this.layer.whine;
+    return this.smoke.whine;
   }
 
   set whine(value: number) {
-    this.layer.whine = value;
+    this.smoke.whine = value;
   }
 
   sputter(at: Point, energy?: number): void {
-    this.layer.sputter(toWorld(at), energy);
-    this.wake();
+    this.smoke.sputter(at, energy);
   }
 
   burst(at: Point, energy?: number): void {
-    this.layer.burst(toWorld(at), energy);
-    this.wake();
+    this.smoke.burst(at, energy);
   }
 
   shower(at: Point, energy?: number): void {
-    this.layer.shower(toWorld(at), energy);
-    this.wake();
+    this.smoke.shower(at, energy);
   }
 
   arc(from: Point, to: Point, energy?: number): void {
-    this.layer.arc(toWorld(from), toWorld(to), energy);
-    this.wake();
+    this.smoke.arc(from, to, energy);
   }
 
   fault(spec: OverlayFaultSpec): OverlayFault {
-    const inner = this.layer.fault({
-      at: toWorld(spec.at),
-      ...(spec.to ? { to: toWorld(spec.to) } : {}),
-      ...(spec.intensity === undefined ? {} : { intensity: spec.intensity }),
-    });
-    this.wake();
-    return new OverlayFaultHandle(inner, this.wake);
+    const cued = this.smoke.cue(
+      { at: spec.at, to: spec.to ?? null },
+      { weight: Math.min(1, Math.max(0, spec.intensity ?? 0)) },
+    );
+    return new IntensityFault(cued, unwrap(cued));
   }
 
   render(dt: number): void {
-    if (this.disposed) return;
-    this.layer.update(dt);
-    this.renderer.render(this.scene, this.camera);
+    this.clock += Math.max(0, Number.isFinite(dt) ? dt : 0) * 1000;
+    this.smoke.sync(this.clock);
   }
 
-  protected frameAt(now: number): void {
-    const dt = this.last === null ? 1 / 60 : (now - this.last) / 1000;
-    this.last = now;
-    this.render(dt);
-  }
-
-  protected get awake(): boolean {
-    return this.layer.live;
-  }
-
-  protected slept(): void {
-    this.last = null;
+  dispose(): void {
+    this.smoke.dispose();
   }
 }
 
-/** A transparent canvas over the viewport, drawing a layer in client coordinates. */
+/**
+ * A transparent canvas over the viewport, drawing faults in client coordinates: `createSmokeOverlay`
+ * behind the interface it had before blits.
+ */
 export function createOverlay(options: OverlayOptions = {}): Overlay {
-  if (typeof document === 'undefined') return new Unsupported();
-  let renderer: WebGLRenderer;
-  try {
-    renderer = new WebGLRenderer({ alpha: true, antialias: true });
-  } catch {
-    return new Unsupported();
-  }
-  return new WebGLOverlay(renderer, options);
+  const smoke = createSmokeOverlay(options);
+  return smoke.supported ? new OverlayAlias(smoke) : new Unsupported();
 }

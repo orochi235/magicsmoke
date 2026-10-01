@@ -11,6 +11,7 @@ import {
 } from '@weasel-js/labkit';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  createOverlay,
   DEFAULT_TUNING,
   dwell,
   type Overlay,
@@ -21,7 +22,6 @@ import {
   type Tuning,
   type TuningGroup,
 } from '../../src/index.js';
-import { engineName, overlayFor } from '../engines.js';
 import { overridesOf } from './overrides.js';
 import { controlsFor } from './schema.js';
 
@@ -87,8 +87,7 @@ export function App() {
   useEffect(() => {
     const sign = signRef.current;
     if (!sign) return;
-    const overlay = overlayFor({ sound: true, jolt: sign });
-    document.title += engineName === 'smoke' ? ' · blits engine' : ' · old engine';
+    const overlay = createOverlay({ sound: true, jolt: sign });
     const { center } = spots(sign);
     const hover = overlay.fault({ at: center });
     const standing = overlay.fault({ at: center });

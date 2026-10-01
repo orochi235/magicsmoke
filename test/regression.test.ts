@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
 import { level } from 'blits';
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +5,7 @@ import { createLayer, type Fault } from '../src/layer.js';
 import { mulberry32 } from '../src/rng.js';
 import { createSmoke, type FaultHandle, fault } from '../src/smoke.js';
 import type { Discharge, Vec3 } from '../src/types.js';
+import fixture from './regression.json' with { type: 'json' };
 
 /** What a script does to one fault, the same on either engine. */
 interface Driver {
@@ -79,12 +78,7 @@ function smokeEngine(seed: number, seen: Seen[], frame: () => number, signal = f
 
 type Script = (engine: Engine, frame: number) => void;
 
-function run(
-  make: typeof oldEngine | typeof newEngine,
-  gaps: readonly number[],
-  script: Script,
-  seed = 7,
-) {
+function run(make: Make, gaps: readonly number[], script: Script, seed = 7) {
   const seen: Seen[] = [];
   let index = 0;
   const engine = make(seed, seen, () => index);
@@ -110,7 +104,7 @@ const ENGINES: Record<string, Make> = {
  * layer API is handed each gap and `createSmoke` a clock summed from them, so a value derived from
  * elapsed time can differ in its last bits; nothing coarser may.
  */
-function digest(gaps: readonly number[], script: Script, make: Make, seed?: number) {
+async function digest(gaps: readonly number[], script: Script, make: Make, seed?: number) {
   const { seen, live } = run(make, gaps, script, seed);
   const rows = seen.map(({ frame, d }) => ({
     ...d,
@@ -118,30 +112,28 @@ function digest(gaps: readonly number[], script: Script, make: Make, seed?: numb
     energy: d.energy.toFixed(12),
     intensity: d.intensity?.toFixed(12),
   }));
-  const hash = createHash('sha256').update(JSON.stringify({ rows, live })).digest('hex');
+  const bytes = new TextEncoder().encode(JSON.stringify({ rows, live }));
+  const sum = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const hash = Array.from(sum, (b) => b.toString(16).padStart(2, '0')).join('');
   return { count: rows.length, hash, quiet: live.at(-1) === false };
 }
 
 /**
- * Recorded 2026-09-30 from the engine magicsmoke ran before blits, with `RECORD=1 npx vitest run
- * test/regression.test.ts`. Every engine below has to reproduce it exactly.
+ * Recorded 2026-09-30 from the engine magicsmoke ran before blits, which is gone; it cannot be
+ * recorded again, only reproduced. Every engine below has to match it exactly.
  */
-const FIXTURE = new URL('./regression.json', import.meta.url);
-const recording = process.env.RECORD === '1';
-const recorded: Record<string, ReturnType<typeof digest>> = recording
-  ? {}
-  : JSON.parse(readFileSync(FIXTURE, 'utf8'));
+const recorded: Record<string, { count: number; hash: string; quiet: boolean }> = fixture;
 
-function expectRecorded(name: string, gaps: readonly number[], script: Script, seed?: number) {
-  if (recording) {
-    recorded[name] = digest(gaps, script, layerEngine, seed);
-    writeFileSync(FIXTURE, `${JSON.stringify(recorded, null, 2)}\n`);
-    return;
-  }
+async function expectRecorded(
+  name: string,
+  gaps: readonly number[],
+  script: Script,
+  seed?: number,
+) {
   const want = recorded[name];
   expect(want?.count).toBeGreaterThan(0);
   for (const [engine, make] of Object.entries(ENGINES)) {
-    expect({ engine, ...digest(gaps, script, make, seed) }).toEqual({ engine, ...want });
+    expect({ engine, ...(await digest(gaps, script, make, seed)) }).toEqual({ engine, ...want });
   }
 }
 
@@ -160,26 +152,26 @@ const C = { x: -60, y: 30, z: 0 };
 
 describe('every engine against the recorded sequences', () => {
   for (const fps of [30, 60, 120, 144]) {
-    it(`throws the recorded discharges from a fault held steady at ${fps} fps`, () => {
+    it(`throws the recorded discharges from a fault held steady at ${fps} fps`, async () => {
       let f: Driver;
-      expectRecorded(`steady ${fps}`, steady(fps, 6), (e, i) => {
+      await expectRecorded(`steady ${fps}`, steady(fps, 6), (e, i) => {
         if (i === 0) f = e.fault(A, B, 0.7);
         if (i === Math.round(fps * 2)) f.set(1);
       });
     });
   }
 
-  it('follows an intensity written every frame, over jittered frames', () => {
+  it('follows an intensity written every frame, over jittered frames', async () => {
     let f: Driver;
-    expectRecorded('written', jittered(600, 3), (e, i) => {
+    await expectRecorded('written', jittered(600, 3), (e, i) => {
       if (i === 0) f = e.fault(A, null, 0);
       f.set(0.5 + 0.5 * Math.sin(i / 40));
     });
   });
 
-  it('keeps several faults, cued at different frames, apart', () => {
+  it('keeps several faults, cued at different frames, apart', async () => {
     let faults: Driver[] = [];
-    expectRecorded('several', steady(60, 8), (e, i) => {
+    await expectRecorded('several', steady(60, 8), (e, i) => {
       if (i === 0) faults = [e.fault(A, B, 0.8)];
       if (i === 45) faults.push(e.fault(B, null, 0.6));
       if (i === 200) faults.push(e.fault(C, A, 1));
@@ -187,43 +179,43 @@ describe('every engine against the recorded sequences', () => {
     });
   });
 
-  it('blows, with the host writing intensity throughout', () => {
+  it('blows, with the host writing intensity throughout', async () => {
     let f: Driver;
-    expectRecorded('blow', steady(60, 5), (e, i) => {
+    await expectRecorded('blow', steady(60, 5), (e, i) => {
       if (i === 0) f = e.fault(A, B, 0.6);
       f.set(0.9);
       if (i === 60) f.blow(1000, 300);
     });
   });
 
-  it('winds a stopped fault down and goes quiet', () => {
+  it('winds a stopped fault down and goes quiet', async () => {
     let f: Driver;
-    expectRecorded('stop', steady(60, 4), (e, i) => {
+    await expectRecorded('stop', steady(60, 4), (e, i) => {
       if (i === 0) f = e.fault(A, B, 1);
       if (i === 120) f.stop();
     });
-    if (!recording) expect(recorded.stop?.quiet).toBe(true);
+    expect(recorded.stop?.quiet).toBe(true);
   });
 
-  it('interleaves one-shots with a fault', () => {
-    expectRecorded('one-shots', jittered(400, 11), (e, i) => {
+  it('interleaves one-shots with a fault', async () => {
+    await expectRecorded('one-shots', jittered(400, 11), (e, i) => {
       if (i === 0) e.fault(A, B, 0.9);
       if (i % 37 === 5) e.burst(C, 0.8);
     });
   });
 
-  it('ramps up, then blows', () => {
+  it('ramps up, then blows', async () => {
     let f: Driver;
-    expectRecorded('ramp and blow', jittered(600, 5), (e, i) => {
+    await expectRecorded('ramp and blow', jittered(600, 5), (e, i) => {
       if (i === 0) f = e.fault(A, B, 0);
       f.set(Math.min(1, i / 200));
       if (i === 400) f.blow(800, 200);
     });
   });
 
-  it('takes gaps longer than a step', () => {
+  it('takes gaps longer than a step', async () => {
     const gaps = steady(60, 6).map((gap, i) => (i % 50 === 25 ? 140 : gap));
-    expectRecorded('long gaps', gaps, (e, i) => {
+    await expectRecorded('long gaps', gaps, (e, i) => {
       if (i === 0) e.fault(A, B, 0.9);
     });
   });

@@ -1,5 +1,6 @@
 import { WebGLRenderer } from 'three';
-import { Canvas, type OverlayOptions, toClient, toWorld, viewportPan } from './overlay.js';
+import { Canvas, toClient, toWorld, viewportPan } from './canvas.js';
+import type { OverlayOptions } from './overlay.js';
 import { createSmoke, type FaultCue, type FaultHandle, fault, type Smoke } from './smoke.js';
 import { resolveTuning, type Tuning } from './tuning.js';
 import type { Point } from './types.js';
@@ -30,7 +31,7 @@ export interface SmokeOverlay {
 }
 
 class Wrapped implements OverlaySmokeFault {
-  private readonly inner: FaultHandle;
+  readonly inner: FaultHandle;
   private readonly wake: () => void;
 
   constructor(inner: FaultHandle, wake: () => void) {
@@ -103,6 +104,30 @@ class Wrapped implements OverlaySmokeFault {
   }
 }
 
+/** A fault on an overlay that cannot draw: it keeps what it is told and does nothing. */
+class InertFault implements OverlaySmokeFault {
+  readonly id = 0;
+  readonly state = 'done';
+  readonly done = Promise.resolve();
+  weight: number;
+  rate = 1;
+  at: Point;
+  to: Point | null;
+
+  constructor(spec: { at: Point; to?: Point | null }, cue: FaultCue) {
+    this.at = spec.at;
+    this.to = spec.to ?? null;
+    this.weight = typeof cue.weight === 'number' ? cue.weight : 0;
+  }
+
+  seek(): void {}
+  weightOf(): number {
+    return 0;
+  }
+  blow(): void {}
+  fade(): void {}
+}
+
 class Inert implements SmokeOverlay {
   readonly supported = false;
   readonly live = false;
@@ -114,11 +139,8 @@ class Inert implements SmokeOverlay {
   burst(): void {}
   shower(): void {}
   arc(): void {}
-  cue(spec: { at: Point; to?: Point | null }): OverlaySmokeFault {
-    return new Wrapped(
-      createSmoke().cue(fault({ ...spec, at: toWorld(spec.at), to: null })),
-      () => {},
-    );
+  cue(spec: { at: Point; to?: Point | null }, cue: FaultCue = {}): OverlaySmokeFault {
+    return new InertFault(spec, cue);
   }
   sync(): void {}
   dispose(): void {}
@@ -240,4 +262,11 @@ export function createSmokeOverlay(options: OverlayOptions = {}): SmokeOverlay {
     return new Inert();
   }
   return new SmokeCanvas(renderer, options);
+}
+
+/** For the old API's alias only, and not exported from the package: the fault an overlay wraps. */
+export function unwrap(fault: OverlaySmokeFault): FaultHandle {
+  if (!(fault instanceof Wrapped))
+    throw new Error('magicsmoke: not a fault from createSmokeOverlay');
+  return fault.inner;
 }

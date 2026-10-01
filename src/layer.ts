@@ -1,7 +1,8 @@
 import type { Object3D } from 'three';
+import { IntensityFault } from './alias.js';
 import type { AudioOptions } from './audio/engine.js';
-import { FaultProcess } from './fault/process.js';
-import { clamp01, type FaultCore, MAX_STEP, SILENT, Stage } from './stage.js';
+import { createSmoke, fault as cueFault, type Smoke } from './smoke.js';
+import { clamp01 } from './stage.js';
 import type { Tuning, TuningOverrides } from './tuning.js';
 import type { Discharge, Vec3 } from './types.js';
 
@@ -82,156 +83,91 @@ export interface Layer {
   dispose(): void;
 }
 
-class FaultHandle implements Fault, FaultCore {
-  readonly process: FaultProcess;
-  at: Vec3;
-  stopped = false;
-  fizzCarry = 0;
-  blowing: FaultCore['blowing'] = null;
-  private landing: Vec3 | null = null;
-  private readonly stage: Stage;
-
-  constructor(process: FaultProcess, spec: FaultSpec, stage: Stage) {
-    this.process = process;
-    this.stage = stage;
-    this.at = spec.at;
-    this.to = spec.to ?? null;
-    this.intensity = spec.intensity ?? 0;
-  }
-
-  get intensity(): number {
-    return this.process.target;
-  }
-
-  set intensity(value: number) {
-    if (!this.stopped && !this.blowing) this.process.target = clamp01(value);
-  }
-
-  blow(spec: BlowSpec = {}): void {
-    if (this.stopped || this.blowing) return;
-    this.stage.blow(this, spec);
-  }
-
-  get to(): Vec3 | null {
-    return this.landing;
-  }
-
-  set to(value: Vec3 | null) {
-    this.landing = value;
-    this.process.canArc = value !== null;
-  }
-
-  stop(): void {
-    this.blowing = null;
-    this.process.surge = 1;
-    this.process.lift = 0;
-    this.process.target = 0;
-    this.stopped = true;
-  }
-}
-
-class MagicLayer implements Layer {
-  private readonly stage: Stage;
-  private readonly faults = new Set<FaultHandle>();
+class LayerAlias implements Layer {
+  private readonly smoke: Smoke;
+  /** The clock `update` advances and hands to `sync`, in ms. */
+  private clock = 0;
 
   constructor(options: LayerOptions) {
-    this.stage = new Stage(options);
+    this.smoke = createSmoke(options);
+    // A fault cued before the first update counts that frame, as the old engine's did.
+    this.smoke.sync(this.clock);
   }
 
   get object(): Object3D {
-    return this.stage.object;
+    return this.smoke.object;
   }
 
   get tuning(): Tuning {
-    return this.stage.tuning;
+    return this.smoke.tuning;
   }
 
   get live(): boolean {
-    if (this.stage.disposed) return false;
-    return this.faulting || this.stage.drawing;
-  }
-
-  /** A fault parked at zero is not live, so a host's frame loop can stop while it waits. */
-  private get faulting(): boolean {
-    for (const fault of this.faults) {
-      if (fault.process.target > 0 || fault.process.level >= SILENT) return true;
-    }
-    return false;
+    return this.smoke.live;
   }
 
   get volume(): number {
-    return this.stage.volume;
+    return this.smoke.volume;
   }
 
   set volume(value: number) {
-    this.stage.volume = value;
+    this.smoke.volume = value;
   }
 
   get muted(): boolean {
-    return this.stage.muted;
+    return this.smoke.muted;
   }
 
   set muted(value: boolean) {
-    this.stage.muted = value;
+    this.smoke.muted = value;
   }
 
   get whine(): number {
-    return this.stage.whine;
+    return this.smoke.whine;
   }
 
   set whine(value: number) {
-    this.stage.whine = value;
+    this.smoke.whine = value;
   }
 
   setFloor(y: number | null): void {
-    this.stage.setFloor(y);
+    this.smoke.setFloor(y);
   }
 
   update(dt: number): void {
-    if (this.stage.disposed) return;
-    const step = Math.min(Math.max(dt, 0), MAX_STEP);
-    for (const fault of this.faults) {
-      if (fault.blowing) this.stage.advanceBlow(fault, step);
-      for (const draft of fault.process.step(step)) this.stage.draft(fault, draft);
-      this.stage.settle(fault, step);
-      if (fault.stopped && fault.process.level < SILENT) this.faults.delete(fault);
-    }
-    this.stage.advance(step);
+    this.clock += Math.max(0, Number.isFinite(dt) ? dt : 0) * 1000;
+    this.smoke.sync(this.clock);
   }
 
   sputter(at: Vec3, energy?: number): void {
-    this.stage.sputter(at, energy);
+    this.smoke.sputter(at, energy);
   }
 
   burst(at: Vec3, energy?: number): void {
-    this.stage.burst(at, energy);
+    this.smoke.burst(at, energy);
   }
 
   shower(at: Vec3, energy?: number): void {
-    this.stage.shower(at, energy);
+    this.smoke.shower(at, energy);
   }
 
   arc(from: Vec3, to: Vec3, energy?: number): void {
-    this.stage.arc(from, to, energy);
+    this.smoke.arc(from, to, energy);
   }
 
   fault(spec: FaultSpec): Fault {
-    const handle = new FaultHandle(
-      new FaultProcess(this.stage.fork(), this.tuning.fault),
-      spec,
-      this.stage,
-    );
-    if (!this.stage.disposed) this.faults.add(handle);
-    return handle;
+    const handle = this.smoke.cue(cueFault({ at: spec.at, to: spec.to ?? null }), {
+      weight: clamp01(spec.intensity ?? 0),
+    });
+    return new IntensityFault(handle, handle);
   }
 
   dispose(): void {
-    if (this.stage.disposed) return;
-    this.faults.clear();
-    this.stage.dispose();
+    this.smoke.dispose();
   }
 }
 
+/** The engine from before blits, now `createSmoke` behind its old interface. */
 export function createLayer(options: LayerOptions = {}): Layer {
-  return new MagicLayer(options);
+  return new LayerAlias(options);
 }

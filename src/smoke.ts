@@ -363,3 +363,12 @@ class SmokeEngine implements Smoke {
 export function createSmoke(options: LayerOptions = {}): Smoke {
   return new SmokeEngine(options);
 }
+
+/**
+ * For the old API's alias only, and not exported from the package: the intensity a fault is easing
+ * toward, and whether a blow holds it, which `intensity` read before the engine moved onto blits.
+ */
+export function heldBy(handle: FaultHandle): { target: number; blowing: boolean } {
+  if (!(handle instanceof Fault)) throw new Error('magicsmoke: not a fault from createSmoke');
+  return { target: handle.record.process.target, blowing: handle.record.blowing !== null };
+}
