@@ -174,4 +174,16 @@ describe('dwell', () => {
     expect(listener).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('reads its value when called, with no frame loop while nothing listens', () => {
+    const frames = vi.spyOn(globalThis, 'requestAnimationFrame');
+    const d = dwell(element, { rise: 1000, fall: 600 });
+    element.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(500);
+    expect(d()).toBeCloseTo(0.5, 2);
+    expect(d.input).toBe(true);
+    expect(frames).not.toHaveBeenCalled();
+    d.onChange(() => {});
+    expect(frames).toHaveBeenCalled();
+  });
 });

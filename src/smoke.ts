@@ -6,7 +6,6 @@ import {
   mix,
   type Patch,
   patch,
-  type Signal,
   type VoiceSpec,
 } from 'blits';
 import type { Object3D } from 'three';
@@ -22,8 +21,14 @@ type Quiet = Record<never, never>;
 const TAG = 'magicsmoke';
 const NOTHING: Partial<Quiet> = {};
 
+/** What a fault's voice reaches, as its weight signal and `weightOf` see it. */
+export interface FaultSubject {
+  readonly at: Vec3;
+  readonly to: Vec3 | null;
+}
+
 /** One fault's state, and the subject its voice reaches. */
-export class FaultRecord implements FaultCore {
+class FaultRecord implements FaultCore, FaultSubject {
   readonly process: FaultProcess;
   at: Vec3;
   fizzCarry = 0;
@@ -84,12 +89,12 @@ export function fault(spec: { at: Vec3; to?: Vec3 | null }): FaultPatch {
 
 /** How a fault plays: blits' voice spec, less what magicsmoke decides itself. */
 export type FaultCue = Omit<
-  VoiceSpec<FaultRecord, Quiet>,
+  VoiceSpec<FaultSubject, Quiet>,
   'patch' | 'target' | 'locus' | 'from' | 'loop' | 'stagger'
 >;
 
 /** A fault's live controls: blits' handle, plus where it sits and its overload. */
-export interface FaultHandle extends Handle<FaultRecord> {
+export interface FaultHandle extends Handle<FaultSubject> {
   at: Vec3;
   to: Vec3 | null;
   /** See `Fault.blow`. The weight is ignored until the blow is over, then followed again. */
@@ -165,8 +170,8 @@ class Fault implements FaultHandle {
     this.inner.seek(elapsed);
   }
 
-  weightOf(subject: FaultRecord): number {
-    return this.inner.weightOf(subject);
+  weightOf(subject: FaultSubject): number {
+    return subject instanceof FaultRecord ? this.inner.weightOf(subject) : 0;
   }
 
   blow(spec: BlowSpec = {}): void {
@@ -285,7 +290,7 @@ class SmokeEngine implements Smoke {
     const inner = this.mix.cue({
       // The process counts the frame before its first advance, so its grid starts at the last sync.
       start: Number.isNaN(this.last) ? undefined : this.last,
-      ...spec,
+      ...(spec as VoiceSpec<FaultRecord, Quiet>),
       tags: [TAG, ...(spec.tags ?? [])],
       patch: FAULT,
       target: (subject) => subject === record,
@@ -360,5 +365,3 @@ class SmokeEngine implements Smoke {
 export function createSmoke(options: LayerOptions = {}): Smoke {
   return new SmokeEngine(options);
 }
-
-export type { Signal };

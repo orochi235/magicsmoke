@@ -13,7 +13,13 @@ export interface DwellSpec {
 
 const DEFAULT_DRAIN = 200;
 
+/**
+ * Callable, so it can be handed to a blits mix as a signal: a call reads `value`. The value is
+ * worked out when read, so a frame loop runs only while `onChange` has listeners.
+ */
 export interface Dwell {
+  (): number;
+  readonly input: true;
   readonly value: number;
   readonly x: number;
   readonly y: number;
@@ -36,18 +42,20 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
   const drain = spec.drain ?? DEFAULT_DRAIN;
   let rise = spec.rise;
 
-  const state: Dwell = {
-    get value() {
-      return value;
-    },
-    get x() {
-      return x;
-    },
-    get y() {
-      return y;
-    },
-    onChange(listener) {
+  const read = (): number => {
+    if (value !== target) advance(performance.now());
+    return value;
+  };
+  const state = Object.defineProperties(read, {
+    input: { value: true },
+    value: { get: read },
+    x: { get: () => x },
+    y: { get: () => y },
+  }) as unknown as Dwell;
+  Object.assign(state, {
+    onChange(listener: (dwell: Dwell) => void) {
       listeners.add(listener);
+      wake();
       return () => listeners.delete(listener);
     },
     dispose() {
@@ -58,8 +66,10 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
       if (frame !== null) cancelAnimationFrame(frame);
       frame = null;
       listeners.clear();
+      read();
+      target = value;
     },
-  };
+  });
 
   const notify = () => {
     for (const listener of [...listeners]) listener(state);
@@ -76,17 +86,24 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
   const tick = () => {
     frame = null;
     if (advance(performance.now())) notify();
-    if (value !== target) frame = requestAnimationFrame(tick);
+    wake();
+  };
+
+  /** Runs the frame loop while the value moves and someone is listening for it. */
+  const wake = () => {
+    if (value !== target && frame === null && listeners.size > 0) {
+      frame = requestAnimationFrame(tick);
+    }
   };
 
   const head = (next: number) => {
     const now = performance.now();
-    const changed = frame !== null && advance(now);
+    const changed = value !== target && advance(now);
     last = now;
     target = next;
     rate = next === 1 ? 1 / Math.max(rise, 1) : value / Math.max(spec.fall, 1);
     if (changed) notify();
-    if (value !== target && frame === null) frame = requestAnimationFrame(tick);
+    wake();
   };
 
   const track = (event: Event): boolean => {
@@ -117,10 +134,10 @@ export function dwell(element: Element, spec: DwellSpec): Dwell {
     if (!track(event)) return;
     anchored = true;
     if (wasAnchored && Number.isFinite(drain) && drain > 0) {
-      if (frame !== null) advance(performance.now());
+      if (value !== target) advance(performance.now());
       last = performance.now();
       value = Math.max(0, value - Math.hypot(x - fromX, y - fromY) / drain);
-      if (value !== target && frame === null) frame = requestAnimationFrame(tick);
+      wake();
     }
     notify();
   }

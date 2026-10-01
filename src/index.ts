@@ -17,6 +17,16 @@ export {
 } from './overlay.js';
 export { type Dwell, type DwellSpec, dwell } from './page/dwell.js';
 export {
+  createSmoke,
+  type FaultCue,
+  type FaultHandle,
+  type FaultPatch,
+  type FaultSubject,
+  fault,
+  type Smoke,
+} from './smoke.js';
+export { createSmokeOverlay, type OverlaySmokeFault, type SmokeOverlay } from './smoke-overlay.js';
+export {
   type ArcTuning,
   type BlowTuning,
   type CrackleTuning,
