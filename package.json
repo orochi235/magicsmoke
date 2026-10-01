@@ -49,7 +49,7 @@
     "bench": "npm run build && node bench/frame.mjs"
   },
   "dependencies": {
-    "blits": "file:../blits",
+    "@msb235/blits": "file:../blits",
     "three.quarks": "^0.17.1"
   },
   "peerDependencies": {

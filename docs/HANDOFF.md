@@ -11,9 +11,9 @@ blits voice (`src/smoke.ts`); `createLayer` and `createOverlay` are aliases over
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
 can no longer be re-recorded. What is left:
 
-- **Merge waits on blits publishing.** `package.json` takes blits as `file:../blits`, which no other
-  machine or npm install resolves. Switch it to the published name (possibly `@msb235/blits`), then
-  merge and release.
+- **Merge waits on blits publishing.** `package.json` takes `@msb235/blits` as `file:../blits`,
+  which no other machine or npm install resolves. Once it is on npm, pin the exact version
+  (`"0.1.0"`, no caret), then merge and release.
 - **Enlist for the fleet** (`onto-enlist`) once merged.
 - `npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100,
   1.27 at 1000.

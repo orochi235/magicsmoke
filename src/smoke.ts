@@ -7,7 +7,7 @@ import {
   type Patch,
   patch,
   type VoiceSpec,
-} from 'blits';
+} from '@msb235/blits';
 import type { Object3D } from 'three';
 import { type Draft, FaultProcess, SUBSTEP } from './fault/process.js';
 import type { BlowSpec, LayerOptions } from './layer.js';

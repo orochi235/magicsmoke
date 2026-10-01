@@ -1,4 +1,4 @@
-import { level } from 'blits';
+import { level } from '@msb235/blits';
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createLayer, type Fault } from '../src/layer.js';
