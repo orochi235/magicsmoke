@@ -1,0 +1,4 @@
+enlist: 2
+plugin: node
+run: npm test
+runner: vitest
