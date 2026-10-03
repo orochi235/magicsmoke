@@ -11,6 +11,8 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
 can no longer be re-recorded. blits bumps its minor for a breaking change below 1.0.0, so read a
 minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
+2026-10-02: on blits 0.3.0. A fault's `rate` and `ramp` reach its voice but change nothing it
+does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
 `npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100, 1.27
 at 1000.
 

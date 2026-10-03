@@ -83,6 +83,18 @@ describe('createSmoke', () => {
     expect(b.seen.length).toBe(a.seen.length);
   });
 
+  it('eases its rate through ramp', () => {
+    const { smoke, frames } = setup();
+    const f = smoke.cue(fault({ at: origin }), { weight: 1 });
+    frames(60);
+    f.ramp(0, 200);
+    frames(6);
+    expect(f.rate).toBeGreaterThan(0);
+    expect(f.rate).toBeLessThan(1);
+    frames(12);
+    expect(f.rate).toBe(0);
+  });
+
   it('ignores the weight while blowing and follows it again after', () => {
     const { smoke, frames } = setup();
     const f = smoke.cue(fault({ at: origin }), { weight: 0.4 });

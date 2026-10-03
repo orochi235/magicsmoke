@@ -146,6 +146,10 @@ class Fault implements FaultHandle {
     this.inner.rate = value;
   }
 
+  ramp(rate: number, over: number): void {
+    this.inner.ramp(rate, over);
+  }
+
   get done(): Promise<void> {
     return this.inner.done;
   }
