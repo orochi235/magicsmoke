@@ -68,6 +68,10 @@ class Wrapped implements OverlaySmokeFault {
     this.inner.rate = value;
   }
 
+  ramp(rate: number, over: number): void {
+    this.inner.ramp(rate, over);
+  }
+
   get at(): Point {
     return toClient(this.inner.at);
   }
@@ -121,6 +125,9 @@ class InertFault implements OverlaySmokeFault {
   }
 
   seek(): void {}
+  ramp(rate: number): void {
+    this.rate = rate;
+  }
   weightOf(): number {
     return 0;
   }
