@@ -11,8 +11,24 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
 can no longer be re-recorded. blits bumps its minor for a breaking change below 1.0.0, so read a
 minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
-2026-10-02: on blits 0.3.0. A fault's `rate` and `ramp` reach its voice but change nothing it
+2026-10-05: on blits 0.6.0. A fault's `rate` and `ramp` reach its voice but change nothing it
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
+A fault's `owner` is always undefined, since its voice is alone on a private mix.
+
+**Fizz and spark tuning are not on `@msb235/blits-quarks` (0.2.0), and it is not a dependency.**
+Tried 2026-10-05; the driver does not fit without changing what magicsmoke does:
+
+- Crackle plays once per fizz frame with that frame's particle count, and `write` does not say how
+  many particles it emitted per subject, so the count would be worked out twice.
+- The driver's carry adds a 1e-6 slack before flooring: at 60 fps and 4 fizz a second, 159 of
+  1200 frames emit a particle one frame earlier than magicsmoke's carry does (measured).
+- `rate` arrives only through a probe, where a `sum` channel is scaled by the fault's weight and
+  blits skips `at` at weight 0; fizz follows the process level, which decays after the weight drops.
+- Tuning rescales every kind's start values live, and the driver captures them at `attach` and
+  ignores later edits; one-shots fire at discharge points, not at subjects, so the driver could
+  scale fizz alone and tuning would split across two paths.
+- The driver emits with the emitter's world rotation and scale; magicsmoke emits at a pure
+  translation, in world coordinates whatever the layer's parent does.
 `npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100, 1.27
 at 1000.
 
