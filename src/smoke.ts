@@ -87,10 +87,14 @@ export function fault(spec: { at: Vec3; to?: Vec3 | null }): FaultPatch {
   return { at: spec.at, to: spec.to ?? null };
 }
 
-/** How a fault plays: blits' voice spec, less what magicsmoke decides itself. */
+/**
+ * How a fault plays: blits' voice spec, less what magicsmoke decides itself. A fault's voice is
+ * alone on a mix of its own, so it takes no `owner` from the host's mix, and no `hits`, which
+ * only a `book` on that mix would hear.
+ */
 export type FaultCue = Omit<
   VoiceSpec<FaultSubject, Quiet>,
-  'patch' | 'target' | 'locus' | 'from' | 'loop' | 'stagger'
+  'patch' | 'target' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
 >;
 
 /** A fault's live controls: blits' handle, plus where it sits and its overload. */
@@ -109,13 +113,13 @@ export interface FaultHandle extends Handle<FaultSubject> {
 class Fault implements FaultHandle {
   readonly record: FaultRecord;
   private readonly inner: Handle<FaultRecord>;
-  private readonly owner: SmokeEngine;
+  private readonly engine: SmokeEngine;
   private readonly fadeOut: number;
 
-  constructor(record: FaultRecord, inner: Handle<FaultRecord>, owner: SmokeEngine, fadeOut = 0) {
+  constructor(record: FaultRecord, inner: Handle<FaultRecord>, engine: SmokeEngine, fadeOut = 0) {
     this.record = record;
     this.inner = inner;
-    this.owner = owner;
+    this.engine = engine;
     this.fadeOut = fadeOut;
   }
 
@@ -150,8 +154,17 @@ class Fault implements FaultHandle {
     this.inner.ramp(rate, over);
   }
 
+  /** A fault's voice plays on a mix of its own, so it never has an owner. */
+  get owner(): undefined {
+    return undefined;
+  }
+
   get done(): Promise<void> {
     return this.inner.done;
+  }
+
+  get played(): Promise<boolean> {
+    return this.inner.played;
   }
 
   get at(): Vec3 {
@@ -180,7 +193,7 @@ class Fault implements FaultHandle {
 
   blow(spec: BlowSpec = {}): void {
     if (this.record.fading || this.record.blowing) return;
-    this.owner.blow(this.record, spec);
+    this.engine.blow(this.record, spec);
   }
 
   fade(opts: Pick<FadeOptions, 'over'> = {}): void {

@@ -47,8 +47,16 @@ class Wrapped implements OverlaySmokeFault {
     return this.inner.state;
   }
 
+  get owner() {
+    return this.inner.owner;
+  }
+
   get done() {
     return this.inner.done;
+  }
+
+  get played() {
+    return this.inner.played;
   }
 
   get weight() {
@@ -112,7 +120,9 @@ class Wrapped implements OverlaySmokeFault {
 class InertFault implements OverlaySmokeFault {
   readonly id = 0;
   readonly state = 'done';
+  readonly owner = undefined;
   readonly done = Promise.resolve();
+  readonly played = Promise.resolve(false);
   weight: number;
   rate = 1;
   at: Point;
