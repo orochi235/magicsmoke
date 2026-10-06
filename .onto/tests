@@ -1,4 +1,4 @@
-enlist: 2
+enlist: 3
 plugin: node
 run: npm test
 runner: vitest
