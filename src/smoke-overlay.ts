@@ -1,3 +1,4 @@
+import type { Doubt, SeekOptions } from '@msb235/blits';
 import { WebGLRenderer } from 'three';
 import { Canvas, toClient, toWorld, viewportPan } from './canvas.js';
 import type { OverlayOptions } from './overlay.js';
@@ -97,8 +98,8 @@ class Wrapped implements OverlaySmokeFault {
     this.wake();
   }
 
-  seek(elapsed: number): void {
-    this.inner.seek(elapsed);
+  seek(elapsed: number, opts?: SeekOptions): Doubt {
+    return this.inner.seek(elapsed, opts);
   }
 
   weightOf(subject: Parameters<FaultHandle['weightOf']>[0]): number {
@@ -134,7 +135,9 @@ class InertFault implements OverlaySmokeFault {
     this.weight = typeof cue.weight === 'number' ? cue.weight : 0;
   }
 
-  seek(): void {}
+  seek(): Doubt {
+    return 'exact';
+  }
   ramp(rate: number): void {
     this.rate = rate;
   }

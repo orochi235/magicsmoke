@@ -1,4 +1,5 @@
 import {
+  type Doubt,
   type FadeOptions,
   type Handle,
   kit,
@@ -6,6 +7,7 @@ import {
   mix,
   type Patch,
   patch,
+  type SeekOptions,
   type VoiceSpec,
 } from '@msb235/blits';
 import type { Object3D } from 'three';
@@ -97,8 +99,11 @@ export type FaultCue = Omit<
   'patch' | 'target' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
 >;
 
-/** A fault's live controls: blits' handle, plus where it sits and its overload. */
-export interface FaultHandle extends Handle<FaultSubject> {
+/**
+ * A fault's live controls: blits' handle, plus where it sits and its overload. It leaves out what
+ * reaches a motion patch, which no fault plays, and `rise`, since a fault's fade is its own.
+ */
+export interface FaultHandle extends Omit<Handle<FaultSubject>, 'to' | 'push' | 'read' | 'rise'> {
   at: Vec3;
   to: Vec3 | null;
   /** See `Fault.blow`. The weight is ignored until the blow is over, then followed again. */
@@ -183,8 +188,8 @@ class Fault implements FaultHandle {
     this.record.to = value;
   }
 
-  seek(elapsed: number): void {
-    this.inner.seek(elapsed);
+  seek(elapsed: number, opts?: SeekOptions): Doubt {
+    return this.inner.seek(elapsed, opts);
   }
 
   weightOf(subject: FaultSubject): number {

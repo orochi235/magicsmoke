@@ -11,7 +11,8 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
 can no longer be re-recorded. blits bumps its minor for a breaking change below 1.0.0, so read a
 minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
-2026-10-05: on blits 0.6.0. A fault's `rate` and `ramp` reach its voice but change nothing it
+On blits 0.8.1 since 2026-10-10: `FaultHandle` leaves out blits' `to`, `push`, `read`, and `rise`,
+since `to` is a fault's far end and its fade is its own. A fault's `rate` and `ramp` reach its voice but change nothing it
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
 A fault's `owner` is always undefined, since its voice is alone on a private mix.
 
