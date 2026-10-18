@@ -13,7 +13,10 @@ can no longer be re-recorded. blits bumps its minor for a breaking change below 
 minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
 2026-10-05: on blits 0.6.0. A fault's `rate` and `ramp` reach its voice but change nothing it
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
-A fault's `owner` is always undefined, since its voice is alone on a private mix.
+A fault's `owner` is always undefined, since its voice plays on magicsmoke's own mix, not the host's.
+2026-10-18: every fault's voice shares that one mix, each naming its own fault as its subject
+(`src/smoke.ts`); there was a mix per fault before. `npm run bench`, three alternated runs on this
+machine: 1000 faults 0.70–0.74 ms/frame against 0.87–1.02, with 16 collections against 9–10.
 
 **Fizz and spark tuning are not on `@msb235/blits-quarks` (0.2.0), and it is not a dependency.**
 Tried 2026-10-05; the driver does not fit without changing what magicsmoke does:

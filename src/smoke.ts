@@ -88,13 +88,13 @@ export function fault(spec: { at: Vec3; to?: Vec3 | null }): FaultPatch {
 }
 
 /**
- * How a fault plays: blits' voice spec, less what magicsmoke decides itself. A fault's voice is
- * alone on a mix of its own, so it takes no `owner` from the host's mix, and no `hits`, which
- * only a `book` on that mix would hear.
+ * How a fault plays: blits' voice spec, less what magicsmoke decides itself. A fault's voice plays
+ * on magicsmoke's own mix and reaches only its own fault, so it takes no `owner` from the host's
+ * mix, no `hits`, which only a `book` on that mix would hear, and no `subjects`.
  */
 export type FaultCue = Omit<
   VoiceSpec<FaultSubject, Quiet>,
-  'patch' | 'target' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
+  'patch' | 'target' | 'subjects' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
 >;
 
 /** A fault's live controls: blits' handle, plus where it sits and its overload. */
@@ -154,7 +154,7 @@ class Fault implements FaultHandle {
     this.inner.ramp(rate, over);
   }
 
-  /** A fault's voice plays on a mix of its own, so it never has an owner. */
+  /** A fault's voice plays on magicsmoke's own mix, so it never has an owner. */
   get owner(): undefined {
     return undefined;
   }
@@ -213,7 +213,7 @@ class Fault implements FaultHandle {
   }
 }
 
-/** magicsmoke on blits: each fault a voice on a private mix, stepped every 5 ms. */
+/** magicsmoke on blits: each fault a voice on one private mix, stepped every 5 ms. */
 export interface Smoke {
   /** Add this to the scene; it renders nothing until then. */
   readonly object: Object3D;
@@ -241,8 +241,12 @@ export interface Smoke {
 
 class SmokeEngine implements Smoke {
   private readonly stage: Stage;
-  /** A mix per fault: a fault's voice reaches only its own record, so nothing is shared. */
-  private readonly faults = new Map<FaultRecord, { handle: Fault; mix: Mix<FaultRecord, Quiet> }>();
+  /** Every fault's voice, each reaching only its own record. */
+  private readonly mix: Mix<FaultRecord, Quiet> = mix<FaultRecord, Quiet>(kit<Quiet>({}), {
+    stepMs: SUBSTEP * 1000,
+    maxDt: MAX_STEP * 1000,
+  });
+  private readonly faults = new Map<FaultRecord, Fault>();
   /** The last synced timestamp; NaN before the first sync and after a rebase. */
   private last = Number.NaN;
 
@@ -300,22 +304,19 @@ class SmokeEngine implements Smoke {
       patch.at,
       patch.to,
     );
-    const faultMix = mix<FaultRecord, Quiet>(kit<Quiet>({}), {
-      stepMs: SUBSTEP * 1000,
-      maxDt: MAX_STEP * 1000,
-    });
-    const inner = faultMix.cue({
+    const inner = this.mix.cue({
       // The process counts the frame before its first advance, so its grid starts at the last sync.
       start: Number.isNaN(this.last) ? undefined : this.last,
       ...(spec as VoiceSpec<FaultRecord, Quiet>),
       tags: [TAG, ...(spec.tags ?? [])],
+      subjects: [record],
       patch: FAULT,
     });
     const handle = new Fault(record, inner, this, spec.fade?.out);
     if (typeof spec.weight === 'number' || spec.weight === undefined) {
       record.aim(spec.weight ?? 1, 0);
     }
-    if (!this.stage.disposed) this.faults.set(record, { handle, mix: faultMix });
+    if (!this.stage.disposed) this.faults.set(record, handle);
     return handle;
   }
 
@@ -328,17 +329,18 @@ class SmokeEngine implements Smoke {
     const gap = Number.isNaN(this.last) ? 0 : timestamp - this.last;
     const step = Math.min(Math.max(gap / 1000, 0), MAX_STEP);
     this.last = timestamp;
-    for (const [record, { handle, mix: faultMix }] of this.faults) {
-      faultMix.sync(timestamp);
+    this.mix.sync(timestamp);
+    for (const [record, handle] of this.faults) {
       if (record.blowing) {
         this.stage.advanceBlow(record, step);
         record.holding = record.blowing === null;
       }
-      faultMix.probe(record);
+      // A probe steps only this fault, so the drain after it holds this fault's discharges alone.
+      this.mix.probe(record);
       record.holding = false;
       // Each fault's discharges render together, in the order the old engine renders them; the
       // page's random stream is shared and order decides its draws.
-      for (const sent of faultMix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
+      for (const sent of this.mix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
       this.stage.settle(record, step);
       if (record.fading && record.process.target === 0 && record.process.level < SILENT) {
         handle.retire();
@@ -349,7 +351,7 @@ class SmokeEngine implements Smoke {
   }
 
   rebase(): void {
-    for (const { mix: faultMix } of this.faults.values()) faultMix.rebase();
+    this.mix.rebase();
     this.last = Number.NaN;
   }
 
@@ -371,7 +373,7 @@ class SmokeEngine implements Smoke {
 
   dispose(): void {
     if (this.stage.disposed) return;
-    for (const { mix: faultMix } of this.faults.values()) faultMix.mute({ over: 0 });
+    this.mix.mute({ over: 0 });
     this.faults.clear();
     this.stage.dispose();
   }
