@@ -103,7 +103,8 @@ export type FaultCue = Omit<
  * A fault's live controls: blits' handle, plus where it sits and its overload. It leaves out what
  * reaches a motion patch, which no fault plays, and `rise`, since a fault's fade is its own.
  */
-export interface FaultHandle extends Omit<Handle<FaultSubject>, 'to' | 'push' | 'read' | 'rise'> {
+export interface FaultHandle
+  extends Omit<Handle<FaultSubject>, 'to' | 'push' | 'set' | 'read' | 'rise'> {
   at: Vec3;
   to: Vec3 | null;
   /** See `Fault.blow`. The weight is ignored until the blow is over, then followed again. */
