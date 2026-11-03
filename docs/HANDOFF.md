@@ -16,22 +16,25 @@ since `to` is a fault's far end and its fade is its own. A fault's `rate` and `r
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
 A fault's `owner` is always undefined, since its voice is alone on a private mix.
 
-**Fizz and spark tuning are not on `@msb235/blits-quarks` (0.2.0), and it is not a dependency.**
-Tried 2026-10-05; the driver does not fit without changing what magicsmoke does:
+**Fizz is emitted through `@msb235/blits-quarks` 0.14.0 (2026-11-03); the one-shots are not.** Each
+fault's mix has a driver of its own, with the fault's record attached to the fizz system at
+`frame: 'world'`. magicsmoke still works out the fizz count with its own carry, clamped by
+`MAX_STEP`, crackles on it, and hands it to `quarks.burst`, then writes that fault's driver at once,
+so fizz lands between this fault's discharges and the next fault's as before. Over 1200 frames of
+three faults with a blow, a tuning change, a fade, a one-shot shower and a long frame, every
+particle's position, velocity and life matched the old code exactly (Math.random stubbed, measured).
+What stays magicsmoke's, and why:
 
-- Crackle plays once per fizz frame with that frame's particle count, and `write` does not say how
-  many particles it emitted per subject, so the count would be worked out twice.
-- The driver's carry adds a 1e-6 slack before flooring: at 60 fps and 4 fizz a second, 159 of
-  1200 frames emit a particle one frame earlier than magicsmoke's carry does (measured).
-- `rate` arrives only through a probe, where a `sum` channel is scaled by the fault's weight and
-  blits skips `at` at weight 0; fizz follows the process level, which decays after the weight drops.
-- Tuning rescales every kind's start values live, and the driver captures them at `attach` and
-  ignores later edits; one-shots fire at discharge points, not at subjects, so the driver could
-  scale fizz alone and tuning would split across two paths.
-- The driver emits with the emitter's world rotation and scale; magicsmoke emits at a pure
-  translation, in world coordinates whatever the layer's parent does.
-`npm run bench`, 2026-09-30, this machine, CPU only: 0.016 ms/frame at 1 fault, 0.132 at 100, 1.27
-at 1000.
+- The carry: the driver's `rate` floors where exact arithmetic would, and magicsmoke's float carry
+  emits a frame late on 41 of 1200 frames at 60 fps and 4 fizz a second (simulated in blits).
+  Handing it `rate` would move those particles.
+- One-shots and a fault's discharge sparks (`SparkEmitters.fire`): they fire at points, not at
+  subjects.
+- Spark tuning (`retune`): it rescales every kind's start values, and the driver's kit has no
+  `speed`, `size` or `life` channel, so the driver leaves them alone and tuning keeps one path.
+
+`npm run bench`, 2026-11-03, one fleet node, CPU only, three runs: 0.015 ms/frame at 1
+fault, 0.14 to 0.15 at 100, 2.0 to 2.1 at 1000, against 1.8 to 2.0 at 1000 before the switch.
 
 The rest of this page predates that.
 

@@ -1,4 +1,5 @@
 import { Group } from 'three';
+import type { ParticleSystem } from 'three.quarks';
 import { AudioEngine } from './audio/engine.js';
 import type { Draft, FaultProcess } from './fault/process.js';
 import { above, opens, strength } from './gates.js';
@@ -177,18 +178,26 @@ export class Stage {
     this.discharge(discharge);
   }
 
-  /** A fault's between-discharge fizz and its share of the hum, once a frame. */
-  settle(fault: FaultCore, step: number): void {
+  /** The system a fault's fizz is emitted on. */
+  get fizz(): ParticleSystem {
+    return this.emitters.system('fizz');
+  }
+
+  /**
+   * A fault's share of the hum, and the fizz particles it owes between discharges this frame, which
+   * crackle as many times; the caller emits them on `fizz`.
+   */
+  settle(fault: FaultCore, step: number): number {
     const t = this.tuning;
     const k = fault.process.level;
     fault.fizzCarry += above(k, t.fizz.from) * t.fizz.perSecond * step * this.countScale;
     const fizz = Math.floor(fault.fizzCarry);
     if (fizz > 0) {
       fault.fizzCarry -= fizz;
-      this.emitters.spawn('fizz', fault.at, fizz);
       if (k > t.crackle.from) this.audio?.crackle(fizz, this.pan(fault.at));
     }
     this.hum = Math.max(this.hum, above(k, t.hum.from));
+    return fizz;
   }
 
   /** Ends the frame: sets the hum every fault settled toward and moves everything drawn. */

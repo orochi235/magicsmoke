@@ -10,6 +10,7 @@ import {
   type SeekOptions,
   type VoiceSpec,
 } from '@msb235/blits';
+import { type Driver, drive } from '@msb235/blits-quarks';
 import type { Object3D } from 'three';
 import { type Draft, FaultProcess, SUBSTEP } from './fault/process.js';
 import type { BlowSpec, LayerOptions } from './layer.js';
@@ -22,6 +23,7 @@ type Quiet = Record<never, never>;
 
 const TAG = 'magicsmoke';
 const NOTHING: Partial<Quiet> = {};
+const QUIET = kit<Quiet>({});
 
 /** What a fault's voice reaches, as its weight signal and `weightOf` see it. */
 export interface FaultSubject {
@@ -247,8 +249,14 @@ export interface Smoke {
 
 class SmokeEngine implements Smoke {
   private readonly stage: Stage;
-  /** A mix per fault: a fault's voice reaches only its own record, so nothing is shared. */
-  private readonly faults = new Map<FaultRecord, { handle: Fault; mix: Mix<FaultRecord, Quiet> }>();
+  /**
+   * A mix per fault: a fault's voice reaches only its own record, so nothing is shared. Its fizz is
+   * emitted by a driver on that mix, so it lands between this fault's discharges and the next's.
+   */
+  private readonly faults = new Map<
+    FaultRecord,
+    { handle: Fault; mix: Mix<FaultRecord, Quiet>; quarks: Driver<FaultRecord, Quiet> }
+  >();
   /** The last synced timestamp; NaN before the first sync and after a rebase. */
   private last = Number.NaN;
 
@@ -306,7 +314,7 @@ class SmokeEngine implements Smoke {
       patch.at,
       patch.to,
     );
-    const faultMix = mix<FaultRecord, Quiet>(kit<Quiet>({}), {
+    const faultMix = mix<FaultRecord, Quiet>(QUIET, {
       stepMs: SUBSTEP * 1000,
       maxDt: MAX_STEP * 1000,
     });
@@ -321,7 +329,11 @@ class SmokeEngine implements Smoke {
     if (typeof spec.weight === 'number' || spec.weight === undefined) {
       record.aim(spec.weight ?? 1, 0);
     }
-    if (!this.stage.disposed) this.faults.set(record, { handle, mix: faultMix });
+    if (!this.stage.disposed) {
+      const quarks = drive(faultMix, { kit: QUIET });
+      quarks.attach(record, this.stage.fizz, { at: () => record.at, frame: 'world' });
+      this.faults.set(record, { handle, mix: faultMix, quarks });
+    }
     return handle;
   }
 
@@ -334,7 +346,7 @@ class SmokeEngine implements Smoke {
     const gap = Number.isNaN(this.last) ? 0 : timestamp - this.last;
     const step = Math.min(Math.max(gap / 1000, 0), MAX_STEP);
     this.last = timestamp;
-    for (const [record, { handle, mix: faultMix }] of this.faults) {
+    for (const [record, { handle, mix: faultMix, quarks }] of this.faults) {
       faultMix.sync(timestamp);
       if (record.blowing) {
         this.stage.advanceBlow(record, step);
@@ -345,8 +357,13 @@ class SmokeEngine implements Smoke {
       // Each fault's discharges render together, in the order the old engine renders them; the
       // page's random stream is shared and order decides its draws.
       for (const sent of faultMix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
-      this.stage.settle(record, step);
+      const fizz = this.stage.settle(record, step);
+      if (fizz > 0) {
+        quarks.burst(record, fizz);
+        quarks.write();
+      }
       if (record.fading && record.process.target === 0 && record.process.level < SILENT) {
+        quarks.detach(record);
         handle.retire();
         this.faults.delete(record);
       }

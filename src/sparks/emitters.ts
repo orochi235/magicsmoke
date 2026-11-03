@@ -123,6 +123,12 @@ export class SparkEmitters {
     }
   }
 
+  system(kind: SparkKind): ParticleSystem {
+    const system = this.systems.get(kind);
+    if (!system) throw new Error('magicsmoke: spark emitters are disposed');
+    return system;
+  }
+
   get particles(): number {
     let n = 0;
     for (const system of this.systems.values()) n += system.particleNum;
