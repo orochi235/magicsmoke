@@ -14,15 +14,19 @@ minor bump there before taking it. The suite is enlisted for the fleet (`onto te
 On blits 1.0.0 since 2026-11-04 (0.19.0 from 2026-11-03): `FaultHandle` leaves out blits' `to`, `push`, `set`, `read`, and `rise`,
 since `to` is a fault's far end and its fade is its own. A fault's `rate` and `ramp` reach its voice but change nothing it
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
-A fault's `owner` is always undefined, since its voice is alone on a private mix.
+A fault's `owner` is always undefined, since its voice plays on magicsmoke's own mix, not the host's.
+2026-10-18: every fault's voice shares that one mix, each naming its own fault as its subject
+(`src/smoke.ts`); there was a mix per fault before. `npm run bench`, three alternated runs on this
+machine: 1000 faults 0.70–0.74 ms/frame against 0.87–1.02, with 16 collections against 9–10.
 
 **Fizz is emitted through blits-quarks' `rate` (2026-11-04); the one-shots are not.** Each
-fault's mix has a driver of its own, `drive(..., { carry: 'float' })`, with the fault's record
+fault has a driver of its own on the shared mix, `drive(..., { carry: 'float' })`, with the fault's record
 attached to the fizz system at `frame: 'world'` and `rate: () => stage.fizzRate(record)`. The
 driver's float carry sums `rate * dt` as magicsmoke's own `fizzCarry` did, so magicsmoke no longer
 keeps one. Each fault's driver is written right after its discharges, which keeps the
 `Math.random` order, and the frame's fizz count it returns is what crackles. A fault cued after
-the first sync syncs its mix at the last timestamp, so its first frame owes fizz as it did. Over
+the first sync gets a driver that owes the mix the time played since it was made (blits-quarks
+0.17.0), so its first frame owes fizz as it did. Over
 1,200 frames of three faults with a blow, a tuning change, a fade, a one-shot shower and a long
 frame, every particle's position, velocity and life matched 650bd28 byte for byte, also with a
 fourth fault cued at frame 400 and also under reduced motion (Math.random stubbed, measured). The
