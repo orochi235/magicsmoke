@@ -11,30 +11,37 @@ Written 2026-09-15. Check it against `git log` before trusting it.
 `test/regression.test.ts` holds every engine to discharge sequences recorded from the old one, which
 can no longer be re-recorded. blits bumps its minor for a breaking change below 1.0.0, so read a
 minor bump there before taking it. The suite is enlisted for the fleet (`onto test`).
-On blits 0.19.0 since 2026-11-03: `FaultHandle` leaves out blits' `to`, `push`, `set`, `read`, and `rise`,
+On blits 1.0.0 since 2026-11-04 (0.19.0 from 2026-11-03): `FaultHandle` leaves out blits' `to`, `push`, `set`, `read`, and `rise`,
 since `to` is a fault's far end and its fade is its own. A fault's `rate` and `ramp` reach its voice but change nothing it
 does: the fault process steps on the mix clock, so a fault plays at its own pace whatever the rate.
 A fault's `owner` is always undefined, since its voice is alone on a private mix.
 
-**Fizz is emitted through `@msb235/blits-quarks` 0.14.0 (2026-11-03); the one-shots are not.** Each
-fault's mix has a driver of its own, with the fault's record attached to the fizz system at
-`frame: 'world'`. magicsmoke still works out the fizz count with its own carry, clamped by
-`MAX_STEP`, crackles on it, and hands it to `quarks.burst`, then writes that fault's driver at once,
-so fizz lands between this fault's discharges and the next fault's as before. Over 1200 frames of
-three faults with a blow, a tuning change, a fade, a one-shot shower and a long frame, every
-particle's position, velocity and life matched the old code exactly (Math.random stubbed, measured).
+**Fizz is emitted through blits-quarks' `rate` (2026-11-04); the one-shots are not.** Each
+fault's mix has a driver of its own, `drive(..., { carry: 'float' })`, with the fault's record
+attached to the fizz system at `frame: 'world'` and `rate: () => stage.fizzRate(record)`. The
+driver's float carry sums `rate * dt` as magicsmoke's own `fizzCarry` did, so magicsmoke no longer
+keeps one. Each fault's driver is written right after its discharges, which keeps the
+`Math.random` order, and the frame's fizz count it returns is what crackles. A fault cued after
+the first sync syncs its mix at the last timestamp, so its first frame owes fizz as it did. Over
+1,200 frames of three faults with a blow, a tuning change, a fade, a one-shot shower and a long
+frame, every particle's position, velocity and life matched 650bd28 byte for byte, also with a
+fourth fault cued at frame 400 and also under reduced motion (Math.random stubbed, measured). The
+default exact carry matched too on those frames; `'float'` is what guarantees it in general.
+
+- **Linked locally:** `@msb235/blits-quarks` is `file:../blits/packages/quarks` until blits-quarks
+  releases `carry` (Unreleased there); the link needs that checkout on a blits that has it, built.
+  Pin the release exactly once it is out. `@msb235/blits` is 1.0.0 from npm.
+- **Unrun with the link:** the typecheck, the full suite on the fleet, and `npm run bench`, since
+  the fleet's blits does not have `carry` yet. Before the switch, one fleet node, three runs:
+  0.015 ms/frame at 1 fault, 0.14 to 0.15 at 100, 2.0 to 2.1 at 1000. Each fault's driver now
+  writes every frame, not only when it owes fizz.
+
 What stays magicsmoke's, and why:
 
-- The carry: the driver's `rate` floors where exact arithmetic would, and magicsmoke's float carry
-  emits a frame late on 41 of 1200 frames at 60 fps and 4 fizz a second (simulated in blits).
-  Handing it `rate` would move those particles.
 - One-shots and a fault's discharge sparks (`SparkEmitters.fire`): they fire at points, not at
   subjects.
 - Spark tuning (`retune`): it rescales every kind's start values, and the driver's kit has no
   `speed`, `size` or `life` channel, so the driver leaves them alone and tuning keeps one path.
-
-`npm run bench`, 2026-11-03, one fleet node, CPU only, three runs: 0.015 ms/frame at 1
-fault, 0.14 to 0.15 at 100, 2.0 to 2.1 at 1000, against 1.8 to 2.0 at 1000 before the switch.
 
 The rest of this page predates that.
 

@@ -39,7 +39,6 @@ export interface FaultCore {
   readonly process: FaultProcess;
   at: Vec3;
   readonly to: Vec3 | null;
-  fizzCarry: number;
   blowing: Blowing | null;
 }
 
@@ -183,21 +182,18 @@ export class Stage {
     return this.emitters.system('fizz');
   }
 
-  /**
-   * A fault's share of the hum, and the fizz particles it owes between discharges this frame, which
-   * crackle as many times; the caller emits them on `fizz`.
-   */
-  settle(fault: FaultCore, step: number): number {
+  /** Fizz particles a second the fault owes between discharges, at its level now. */
+  fizzRate(fault: FaultCore): number {
+    const t = this.tuning;
+    return above(fault.process.level, t.fizz.from) * t.fizz.perSecond * this.countScale;
+  }
+
+  /** A fault's share of the hum, and a crackle for each fizz particle it emitted this frame. */
+  settle(fault: FaultCore, fizz: number): void {
     const t = this.tuning;
     const k = fault.process.level;
-    fault.fizzCarry += above(k, t.fizz.from) * t.fizz.perSecond * step * this.countScale;
-    const fizz = Math.floor(fault.fizzCarry);
-    if (fizz > 0) {
-      fault.fizzCarry -= fizz;
-      if (k > t.crackle.from) this.audio?.crackle(fizz, this.pan(fault.at));
-    }
+    if (fizz > 0 && k > t.crackle.from) this.audio?.crackle(fizz, this.pan(fault.at));
     this.hum = Math.max(this.hum, above(k, t.hum.from));
-    return fizz;
   }
 
   /** Ends the frame: sets the hum every fault settled toward and moves everything drawn. */

@@ -49,8 +49,8 @@
     "bench": "npm run build && node bench/frame.mjs"
   },
   "dependencies": {
-    "@msb235/blits": "0.19.0",
-    "@msb235/blits-quarks": "0.14.0",
+    "@msb235/blits": "1.0.0",
+    "@msb235/blits-quarks": "file:../blits/packages/quarks",
     "three.quarks": "^0.17.1"
   },
   "peerDependencies": {

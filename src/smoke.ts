@@ -35,7 +35,6 @@ export interface FaultSubject {
 class FaultRecord implements FaultCore, FaultSubject {
   readonly process: FaultProcess;
   at: Vec3;
-  fizzCarry = 0;
   blowing: FaultCore['blowing'] = null;
   /** True through the frame a blow ends: the old engine dropped intensity written before it. */
   holding = false;
@@ -330,8 +329,14 @@ class SmokeEngine implements Smoke {
       record.aim(spec.weight ?? 1, 0);
     }
     if (!this.stage.disposed) {
-      const quarks = drive(faultMix, { kit: QUIET });
-      quarks.attach(record, this.stage.fizz, { at: () => record.at, frame: 'world' });
+      // Its clock starts at the last sync, so the next one plays a whole frame, fizz included.
+      if (!Number.isNaN(this.last)) faultMix.sync(this.last);
+      const quarks = drive(faultMix, { kit: QUIET, carry: 'float' });
+      quarks.attach(record, this.stage.fizz, {
+        at: () => record.at,
+        rate: () => this.stage.fizzRate(record),
+        frame: 'world',
+      });
       this.faults.set(record, { handle, mix: faultMix, quarks });
     }
     return handle;
@@ -357,11 +362,7 @@ class SmokeEngine implements Smoke {
       // Each fault's discharges render together, in the order the old engine renders them; the
       // page's random stream is shared and order decides its draws.
       for (const sent of faultMix.drain<Draft>(TAG)) this.stage.draft(record, sent.event);
-      const fizz = this.stage.settle(record, step);
-      if (fizz > 0) {
-        quarks.burst(record, fizz);
-        quarks.write();
-      }
+      this.stage.settle(record, quarks.write().get(record) ?? 0);
       if (record.fading && record.process.target === 0 && record.process.level < SILENT) {
         quarks.detach(record);
         handle.retire();
