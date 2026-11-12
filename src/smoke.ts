@@ -97,7 +97,7 @@ export function fault(spec: { at: Vec3; to?: Vec3 | null }): FaultPatch {
  */
 export type FaultCue = Omit<
   VoiceSpec<FaultSubject, Quiet>,
-  'patch' | 'target' | 'subjects' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
+  'patch' | 'target' | 'subjects' | 'role' | 'locus' | 'from' | 'loop' | 'stagger' | 'owner' | 'hits'
 >;
 
 /**
