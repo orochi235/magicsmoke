@@ -274,6 +274,11 @@ export class Stage {
     if (opens(d, t.pageFlash.from) && d.energy > t.pageFlash.energy) {
       this.pageFlash?.pulse(d.energy);
     }
-    this.onDischarge?.(d);
+    try {
+      this.onDischarge?.(d);
+    } catch (err) {
+      // A host's observer must not cut a frame short: the rest of its discharges still fire.
+      console.error('magicsmoke: onDischarge threw', err);
+    }
   }
 }

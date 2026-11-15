@@ -228,3 +228,27 @@ describe('createLayer', () => {
     expect(layer.live).toBe(false);
   });
 });
+
+describe('onDischarge', () => {
+  it('lets the rest of a frame discharge when the observer throws', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const seen: Discharge[] = [];
+    const layer = createLayer({
+      seed: 1,
+      tuning: { blow: { showers: 3 } },
+      onDischarge: (d) => {
+        if (d.intensity !== undefined) return;
+        seen.push(d);
+        if (seen.length === 1) throw new Error('host bug');
+      },
+    });
+    new Scene().add(layer.object);
+    layer.fault({ at: origin }).blow({ peak: 510, after: 200 });
+
+    for (let i = 0; i < 31; i++) layer.update(1 / 60);
+
+    expect(seen.map((d) => d.kind)).toEqual(['shower', 'shower', 'shower', 'burst']);
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
+  });
+});
