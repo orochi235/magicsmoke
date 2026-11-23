@@ -1,9 +1,9 @@
 import {
   type ConfigShape,
+  configValueAt,
   f,
   type ResolvedConfig,
   resolveConfigSchema,
-  valueAtPath,
 } from '@weasel-js/labkit';
 import type { ParamSpec } from '../../src/index.js';
 
@@ -24,7 +24,7 @@ export function controlsFor(groups: ParamGroups, defaults: unknown): ResolvedCon
   for (const [group, { label, params }] of Object.entries(groups)) {
     const leaves: Record<string, ConfigShape[string]> = {};
     for (const [key, spec] of Object.entries(params)) {
-      const fallback = valueAtPath(defaults, `${group}.${key}`);
+      const fallback = configValueAt(defaults, `${group}.${key}`);
       let leaf = f
         .number(typeof fallback === 'number' ? fallback : spec.min)
         .range(spec.min, spec.max)

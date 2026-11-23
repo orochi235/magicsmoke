@@ -1,13 +1,12 @@
 import {
   Button,
-  CheckboxRow,
   ControlPanel,
   LabShell,
+  PropertyField,
   PropertyList,
   PropertyPanel,
-  SliderRow,
   usePersistedState,
-  withValueAtPath,
+  withConfigValueAt,
 } from '@weasel-js/labkit';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -140,7 +139,7 @@ export function App() {
     setSavedStage((prev) => ({ ...STAGE, ...prev, [key]: value }));
 
   const setConfig = (path: string, value: unknown) => {
-    const next = withValueAtPath(tuning, path, value);
+    const next = withConfigValueAt(tuning, path, value);
     if (rig) apply(rig.overlay, next);
     setStored(next);
   };
@@ -210,7 +209,9 @@ export function App() {
         <aside className="tuning-panel">
           <PropertyPanel title="Held fault">
             <PropertyList>
-              <SliderRow
+              <PropertyField
+                kind="number"
+                control="slider"
                 label="Hold intensity"
                 value={stage.hold}
                 min={0}
@@ -220,7 +221,8 @@ export function App() {
                 onChange={(v) => setStage('hold', v)}
                 description="A standing fault on the sign at this intensity, with no hovering."
               />
-              <CheckboxRow
+              <PropertyField
+                kind="boolean"
                 label="Arcs to a second point"
                 value={stage.arcs}
                 onChange={(v) => setStage('arcs', v)}
@@ -241,7 +243,9 @@ export function App() {
               ))}
             </div>
             <PropertyList>
-              <SliderRow
+              <PropertyField
+                kind="number"
+                control="slider"
                 label="Energy"
                 value={stage.energy}
                 min={0}
@@ -254,7 +258,9 @@ export function App() {
           </PropertyPanel>
           <PropertyPanel title="Sound">
             <PropertyList>
-              <SliderRow
+              <PropertyField
+                kind="number"
+                control="slider"
                 label="Volume"
                 value={stage.volume}
                 min={0}
@@ -263,8 +269,9 @@ export function App() {
                 format={two}
                 onChange={(v) => setStage('volume', v)}
               />
-              <CheckboxRow label="Whine" value={whine} onChange={setWhine} />
-              <CheckboxRow
+              <PropertyField kind="boolean" label="Whine" value={whine} onChange={setWhine} />
+              <PropertyField
+                kind="boolean"
                 label="Muted"
                 value={stage.muted}
                 onChange={(v) => setStage('muted', v)}

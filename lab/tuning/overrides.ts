@@ -1,4 +1,4 @@
-import { valueAtPath, withValueAtPath } from '@weasel-js/labkit';
+import { configValueAt, withConfigValueAt } from '@weasel-js/labkit';
 import {
   DEFAULT_TUNING,
   TUNING_SCHEMA,
@@ -15,10 +15,10 @@ export function overridesOf(tuning: Tuning): TuningOverrides {
   for (const [group, { params }] of Object.entries(groups)) {
     for (const [key, spec] of Object.entries(params)) {
       const path = `${group}.${key}`;
-      const value = valueAtPath(tuning, path);
-      const fallback = valueAtPath(DEFAULT_TUNING, path);
+      const value = configValueAt(tuning, path);
+      const fallback = configValueAt(DEFAULT_TUNING, path);
       if (typeof value !== 'number' || typeof fallback !== 'number') continue;
-      if (Math.abs(value - fallback) >= spec.step / 2) out = withValueAtPath(out, path, value);
+      if (Math.abs(value - fallback) >= spec.step / 2) out = withConfigValueAt(out, path, value);
     }
   }
   return out;
